@@ -15,9 +15,10 @@ namespace RollingPanda
             if(EditorApplication.isPlayingOrWillChangePlaymode) return;
             if(Load("Tree1_summer")==null) return;
             var art=AssetDatabase.LoadAssetAtPath<EnvironmentArt>(Folder+"/EnvironmentArt.asset");
-            if(art!=null && art.SummerTrees!=null && art.SummerTrees.Length==8 && art.Petals!=null) return;
+            if(art!=null && art.SummerTrees!=null && art.SummerTrees.Length==8 && art.Petals!=null && art.MenuTree!=null) return;
             if(!AssetDatabase.IsValidFolder(Folder)) System.IO.Directory.CreateDirectory(Folder);
             if(art==null){art=ScriptableObject.CreateInstance<EnvironmentArt>();AssetDatabase.CreateAsset(art,Folder+"/EnvironmentArt.asset");}
+            art.MenuTree=Load("Tree5_autumn");
             art.SummerTrees=Series("Tree",8,"summer");art.AutumnTrees=Series("Tree",8,"autumn");
             art.SummerBushes=Series("Bush",2,"summer");art.AutumnBushes=Series("Bush",2,"autumn");
             art.Logs=Series("Log",3,"summer");art.Stumps=Series("Stump",6,"summer");

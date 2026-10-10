@@ -1,20 +1,27 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 
 namespace RollingPanda
 {
-    // A separate, bounded presentation scene. No runner or obstacle pool runs behind the menu.
+    // The menu clearing and held endless runner share one world; Play hands over control.
     public sealed class StartMenu : MonoBehaviour
     {
         Transform sleeper;
         Camera view;
+        RunEntryTransition entrance;
+        RunnerCamera chaseCamera;
+        VisualPrototype worldArt;
+        RunnerMotor gameRunner;
+        bool ready;
+        EnvironmentArt environment;
+        readonly List<Mesh> meshes=new List<Mesh>();
+        Mesh bambooBlade;
         Font font;
         GUIStyle title, text, button;
         readonly List<Material> materials = new List<Material>();
-        string panel = "", error = "";
+        string panel = "";
         bool loading;
 #if !UNITY_EDITOR && !UNITY_STANDALONE
         int pressed = -1;
@@ -34,7 +41,23 @@ namespace RollingPanda
             volume = PlayerPrefs.GetFloat("RollingPanda.Volume", 1);
             AudioListener.volume = volume;
             RunnerInput.Reset();
+            entrance=new GameObject("Forest entrance hold").AddComponent<RunEntryTransition>();
+            environment=Resources.Load<EnvironmentArt>("Presentation/EnvironmentArt");
             BuildWorld();
+        }
+        IEnumerator Start()
+        {
+            // Configure while inactive so Awake builds the actual endless course once.
+            var world=new GameObject("Menu and forest run");world.SetActive(false);
+            world.AddComponent<MovementPrototype>().ConfigureEndless();
+            worldArt=world.AddComponent<VisualPrototype>();
+            world.SetActive(true);
+            chaseCamera=view.GetComponent<RunnerCamera>();chaseCamera.enabled=false;
+            gameRunner=world.GetComponentInChildren<RunnerMotor>();
+            yield return null;
+            yield return null;
+            if(worldArt.Panda!=null) worldArt.Panda.gameObject.SetActive(false);
+            ready=gameRunner!=null && worldArt.Panda!=null;
         }
         void Layout()
         {
@@ -50,8 +73,8 @@ namespace RollingPanda
             if (!loading)
             {
             view.orthographicSize = Screen.width > Screen.height ? 5.4f : 8.2f;
-            view.transform.position = Screen.width > Screen.height ? new Vector3(7, 5.8f, -13) : new Vector3(5, 7.5f, -14);
-            view.transform.LookAt(Screen.width > Screen.height ? new Vector3(2.4f, 3, 0) : new Vector3(0, 1.5f, 0));
+            view.transform.position = Screen.width > Screen.height ? new Vector3(2, 5.8f, -13) : new Vector3(0, 7.5f, -14);
+            view.transform.LookAt(Screen.width > Screen.height ? new Vector3(-2.6f, 3, 0) : new Vector3(-4.5f, 1.5f, 0));
             }
 #if !UNITY_EDITOR && !UNITY_STANDALONE
             var touch = Touchscreen.current;
@@ -75,12 +98,11 @@ namespace RollingPanda
         }
         void Activate(int i)
         {
-            if (loading) return;
+            if (loading || !ready) return;
             if (panel=="")
             {
                 if (i==0)
                 {
-                    if (!Application.CanStreamedLevelBeLoaded("VisualPrototype")) { error="Add VisualPrototype to the Build Profile scene list."; return; }
                     loading=true; StartCoroutine(RollIntoRun());
                 }
                 else panel = i==1 ? "Settings" : i==2 ? "Leaderboards" : "Shop";
@@ -96,12 +118,10 @@ namespace RollingPanda
         IEnumerator RollIntoRun()
         {
             // Preload during the roll and activate only once the short fade fully covers the view.
-            var overlay = new GameObject("Roll into run transition").AddComponent<RunEntryTransition>();
-            var operation = SceneManager.LoadSceneAsync("VisualPrototype");
-            operation.allowSceneActivation = false;
+            var overlay=entrance;
             Vector3 start = sleeper.localPosition;
             Quaternion rotation = sleeper.localRotation;
-            Quaternion upright = Quaternion.Euler(0,0,-90); // Head (-X) becomes up; face remains toward -Z.
+            Quaternion upright = Quaternion.Euler(0,180,0)*Quaternion.Euler(0,0,-90); // Head (-X) becomes up; face remains toward -Z.
             Vector3 cameraStart = view.transform.position;
             Quaternion cameraRotation = view.transform.rotation;
             Matrix4x4 menuProjection = view.projectionMatrix;
@@ -116,7 +136,7 @@ namespace RollingPanda
                 float fall = Mathf.Clamp01((elapsed-.45f)/.85f);
                 float roll = Mathf.Clamp01((elapsed-1.3f)/1.4f);
                 float tuck = Mathf.SmoothStep(0,1,fall);
-                Vector3 landing = new Vector3(1.5f,.7f,-1.5f);
+                Vector3 landing = new Vector3(-3,.75f,-4.5f);
                 if(elapsed < .45f)
                 {
                     sleeper.localPosition=start+Vector3.up*(Mathf.Sin(wake*Mathf.PI)*.12f);
@@ -129,8 +149,8 @@ namespace RollingPanda
                 }
                 else
                 {
-                    sleeper.localPosition=landing+new Vector3(0,Mathf.Abs(Mathf.Sin(roll*Mathf.PI*3))*.12f,-4.5f*roll);
-                    sleeper.localRotation=Quaternion.AngleAxis(-720*roll,Vector3.right)*upright;
+                    sleeper.localPosition=landing+new Vector3(3*roll,Mathf.Abs(Mathf.Sin(roll*Mathf.PI*3))*.12f,4.5f*roll);
+                    sleeper.localRotation=Quaternion.AngleAxis(720*roll,Vector3.right)*upright;
                 }
                 sleeper.localScale=Vector3.Lerp(Vector3.one,new Vector3(.85f,1,.95f),tuck);
                 for(int i=0;i<parts.Count;i++)
@@ -141,14 +161,12 @@ namespace RollingPanda
                         target+=new Vector3(.18f,-.12f,0);
                     parts[i].localPosition=Vector3.Lerp(poses[i],target,tuck);
                 }
-                // Orbit from the front to the chase side while travel stays toward -Z.
-                // The run uses +Z, but the same camera-relative forward direction.
+                // Finish at the actual runner's chase view in this same world.
                 float chase = Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-.65f)/1.75f));
-                Vector3 orbit = Quaternion.Euler(0,180*chase,0)*new Vector3(0,5,-8);
-                Vector3 feet = sleeper.localPosition-Vector3.up*.7f;
-                view.transform.position=Vector3.Lerp(cameraStart,feet+orbit,chase);
-                Vector3 aim=feet+new Vector3(0,1,Mathf.Lerp(0,-6,chase));
-                Quaternion look=Quaternion.LookRotation(aim-view.transform.position);
+                Vector3 feet=sleeper.localPosition-Vector3.up*.7f;
+                Vector3 cameraEnd=feet+new Vector3(0,5,-8);
+                view.transform.position=Vector3.Lerp(cameraStart,cameraEnd,chase);
+                Quaternion look=Quaternion.LookRotation(feet+new Vector3(0,1,6)-view.transform.position);
                 view.transform.rotation=Quaternion.Slerp(cameraRotation,look,chase);
                 if(elapsed>.65f)
                 {
@@ -163,7 +181,12 @@ namespace RollingPanda
             view.ResetProjectionMatrix();
             overlay.Opacity=1;
             yield return null;
-            overlay.Finish(operation);
+            sleeper.gameObject.SetActive(false);
+            if(worldArt.Panda!=null) worldArt.Panda.gameObject.SetActive(true);
+            view.orthographic=false;view.fieldOfView=60;view.ResetProjectionMatrix();
+            chaseCamera.enabled=true;
+            overlay.Finish(null);
+            enabled=false;
         }
         void OnGUI()
         {
@@ -195,12 +218,12 @@ namespace RollingPanda
                 GUI.Label(new Rect(Left,Top+144,PanelWidth,118),detail,text);
                 DrawButton(0,"Back");
             }
-            if(error!="") GUI.Label(new Rect(24,Height-70,Width-48,64),error,text);
+
             GUI.matrix=previous;
         }
         void DrawButton(int i,string label)
         {
-            GUI.enabled=!loading;
+            GUI.enabled=!loading && ready;
             bool clicked=GUI.Button(Row(i),label,button);
 #if UNITY_EDITOR || UNITY_STANDALONE
             if(clicked) Activate(i);
@@ -221,33 +244,112 @@ namespace RollingPanda
             var t=Shape(PrimitiveType.Cylinder,"Branch",parent,(a+b)*.5f,new Vector3(radius,(b-a).magnitude*.5f,radius),mat);
             t.up=(b-a).normalized;
         }
+        bool PlaceImported(GameObject prefab,Vector3 position,float height,float yaw)
+        {
+            if(prefab==null) return false;
+            var go=Instantiate(prefab,transform,false);go.name="Menu "+prefab.name;
+            go.transform.localPosition=Vector3.zero;go.transform.localRotation=Quaternion.identity;go.transform.localScale=Vector3.one;
+            foreach(var c in go.GetComponentsInChildren<Collider>(true)) c.enabled=false;
+            foreach(var c in go.GetComponentsInChildren<MonoBehaviour>(true)) c.enabled=false;
+            foreach(var body in go.GetComponentsInChildren<Rigidbody>(true)) {body.isKinematic=true;body.useGravity=false;}
+            var renderers=go.GetComponentsInChildren<Renderer>(true);
+            if(renderers.Length==0) {Destroy(go);return false;}
+            Bounds bounds=renderers[0].bounds;foreach(var renderer in renderers) bounds.Encapsulate(renderer.bounds);
+            float scale=height/Mathf.Max(.01f,height>=6 ? bounds.size.y : Mathf.Max(bounds.size.x,Mathf.Max(bounds.size.y,bounds.size.z)));
+            var wrapper=new GameObject("Grounded menu prop").transform;wrapper.SetParent(transform,false);wrapper.localPosition=position;wrapper.localRotation=Quaternion.Euler(0,yaw,0);
+            go.transform.SetParent(wrapper,false);go.transform.localScale=Vector3.one*scale;
+            go.transform.localPosition=new Vector3(-bounds.center.x,-bounds.min.y,-bounds.center.z)*scale;
+            var copies=new Dictionary<Material,Material>();
+            foreach(var renderer in renderers)
+            {
+                var list=renderer.sharedMaterials;
+                for(int i=0;i<list.Length;i++)
+                {
+                    Material original=list[i];if(original==null) continue;
+                    if(!copies.TryGetValue(original,out var converted))
+                    {
+                        Color color=original.HasProperty("_BaseColor") ? original.GetColor("_BaseColor") : original.HasProperty("_Color") ? original.GetColor("_Color") : Color.white;
+                        converted=Mat("Menu URP "+original.name,color);
+                        Texture map=original.HasProperty("_BaseMap") ? original.GetTexture("_BaseMap") : original.HasProperty("_MainTex") ? original.GetTexture("_MainTex") : null;
+                        if(map!=null) converted.SetTexture("_BaseMap",map);
+                        copies[original]=converted;
+                    }
+                    list[i]=converted;
+                }
+                renderer.sharedMaterials=list;
+            }
+            return true;
+        }
+        void BuildPouch(Vector3 position,Material cloth,Material trim)
+        {
+            // Open, pleated sack with a gathered neck; keeps room for actual Diamondo gems.
+            float[] heights={0,.12f,.45f,.75f,.9f,1};
+            float[] radii={.27f,.5f,.58f,.5f,.31f,.38f};
+            const int sides=20;
+            var vertices=new Vector3[heights.Length*sides];var uv=new Vector2[vertices.Length];
+            var triangles=new int[(heights.Length-1)*sides*6];int index=0;
+            for(int ring=0;ring<heights.Length;ring++) for(int i=0;i<sides;i++)
+            {
+                float angle=i*Mathf.PI*2/sides;
+                float radius=radii[ring]*(1+(i%2==0 ? .06f : -.06f));
+                vertices[ring*sides+i]=new Vector3(Mathf.Cos(angle)*radius,heights[ring],Mathf.Sin(angle)*radius*.8f);
+                uv[ring*sides+i]=new Vector2((float)i/sides,(float)ring/(heights.Length-1));
+                if(ring==heights.Length-1) continue;
+                int a=ring*sides+i,b=ring*sides+(i+1)%sides,c=a+sides,d=b+sides;
+                triangles[index++]=a;triangles[index++]=c;triangles[index++]=b;
+                triangles[index++]=b;triangles[index++]=c;triangles[index++]=d;
+            }
+            var mesh=new Mesh{name="Pleated loot sack"};mesh.vertices=vertices;mesh.uv=uv;mesh.triangles=triangles;mesh.RecalculateNormals();mesh.RecalculateBounds();meshes.Add(mesh);
+            var sack=new GameObject("Open loot sack");sack.transform.SetParent(transform,false);sack.transform.localPosition=position;
+            sack.AddComponent<MeshFilter>().sharedMesh=mesh;sack.AddComponent<MeshRenderer>().sharedMaterial=cloth;
+            var rope=Mat("Pouch golden drawcord",new Color(.72f,.53f,.24f));
+            for(int i=0;i<20;i++)
+            {
+                float a=i*Mathf.PI*2/20,b=(i+1)*Mathf.PI*2/20;
+                Branch(sack.transform,new Vector3(Mathf.Cos(a)*.33f,.91f,Mathf.Sin(a)*.27f),new Vector3(Mathf.Cos(b)*.33f,.91f,Mathf.Sin(b)*.27f),.035f,rope);
+            }
+            Branch(sack.transform,new Vector3(.3f,.91f,-.1f),new Vector3(.48f,.56f,-.2f),.035f,rope);
+            Shape(PrimitiveType.Sphere,"Drawcord knot",sack.transform,new Vector3(.32f,.88f,-.1f),Vector3.one*.11f,rope);
+            Shape(PrimitiveType.Cube,"Sack seam",sack.transform,new Vector3(0,.48f,-.455f),new Vector3(.025f,.65f,.025f),trim);
+        }
+        Mesh BambooBlade()
+        {
+            if(bambooBlade!=null) return bambooBlade;
+            bambooBlade=new Mesh{name="Tapered bamboo leaf"};
+            bambooBlade.vertices=new[]{new Vector3(-.5f,0,0),new Vector3(.5f,0,0),new Vector3(0,.04f,-.12f),new Vector3(0,.04f,.12f)};
+            bambooBlade.triangles=new[]{0,2,1,0,1,3};bambooBlade.RecalculateNormals();bambooBlade.RecalculateBounds();meshes.Add(bambooBlade);return bambooBlade;
+        }
         void BuildWorld()
         {
             view=Camera.main;view.orthographic=true;view.clearFlags=CameraClearFlags.SolidColor;view.backgroundColor=new Color(.13f,.23f,.22f);
             var bark=Mat("Cherry bark",new Color(.25f,.13f,.1f));var pink=Mat("Blossom",new Color(1,.54f,.67f));var pale=Mat("Petal tips",new Color(1,.8f,.83f));
             var green=Mat("Bamboo",new Color(.19f,.37f,.16f));var leaf=Mat("Leaves",new Color(.29f,.48f,.22f));var ivory=Mat("Panda ivory",new Color(.92f,.91f,.82f));var black=Mat("Panda ink",new Color(.055f,.06f,.065f));var red=Mat("Headband",new Color(.75f,.06f,.045f));
-            Shape(PrimitiveType.Cylinder,"Mossy clearing",transform,new Vector3(0,-.4f,0),new Vector3(18,.4f,14),green);
-            Branch(transform,new Vector3(-2,0,0),new Vector3(-1.7f,5.2f,.4f),.75f,bark);
-            Branch(transform,new Vector3(-1.8f,2.4f,0),new Vector3(1.5f,3.1f,0),.48f,bark);
-            Branch(transform,new Vector3(-1.7f,3.4f,0),new Vector3(-4,5.5f,1),.35f,bark);
-            Branch(transform,new Vector3(-1.7f,4.5f,.3f),new Vector3(1.1f,6.2f,1),.3f,bark);
+            leaf.SetFloat("_Cull",0);
+            Shape(PrimitiveType.Sphere,"Mossy tree bank",transform,new Vector3(-7,-.45f,0),new Vector3(7,1,9),green);
+            bool tree=environment!=null && PlaceImported(environment.MenuTree,new Vector3(-6,0,0),8,15);
+            if(!tree) Branch(transform,new Vector3(-6,0,0),new Vector3(-6,6,0),.7f,bark);
+            Branch(transform,new Vector3(-6,2.4f,0),new Vector3(-3.5f,3.1f,-.3f),.4f,bark);
             var rng=new System.Random(7301);
-            for(int i=0;i<95;i++)
+            if(environment!=null)
             {
-                float x=(float)rng.NextDouble()*7-4.5f, y=5+(float)rng.NextDouble()*2, z=(float)rng.NextDouble()*3;
-                Shape(PrimitiveType.Sphere,"Cherry blossom cluster",transform,new Vector3(x,y,z),new Vector3(.65f,.48f,.6f),i%3==0 ? pale : pink);
+                for(int i=0;i<4;i++)
+                {
+                    if(environment.AutumnBushes!=null && environment.AutumnBushes.Length>0) PlaceImported(environment.AutumnBushes[i%environment.AutumnBushes.Length],new Vector3(-8+i*.8f,0,-2.5f),1.4f,i*50);
+                    if(i<2 && environment.Logs!=null && environment.Logs.Length>i) PlaceImported(environment.Logs[i],new Vector3(-7+i*2,0,2.5f),1.8f,i*45);
+                }
             }
             for(int i=0;i<24;i++)
             {
-                float x=i<12 ? -5.5f+(i%4)*.45f : 3.5f+(i%4)*.45f,z=2+i%6;
+                float x=i<12 ? -8.5f+(i%4)*.45f : -4.8f+(i%4)*.3f,z=2+i%6;
                 float h=4+i%5*.6f;
                 Branch(transform,new Vector3(x,0,z),new Vector3(x+.3f,h,z),.09f,green);
-                for(int j=0;j<3;j++)
+                for(int node=1;node<h;node++) Shape(PrimitiveType.Cylinder,"Bamboo node",transform,new Vector3(x+.3f*node/h,node,z),new Vector3(.115f,.025f,.115f),leaf);
+                for(int j=0;j<6;j++)
                 {
-                    var l=Shape(PrimitiveType.Sphere,"Bamboo leaf spray",transform,new Vector3(x+(j%2==0 ? .4f : -.4f),h-j*.8f,z),new Vector3(1.4f,.15f,.5f),leaf);l.localRotation=Quaternion.Euler(0,j*55,j%2==0 ? 20 : -20);
+                    var l=Shape(PrimitiveType.Cube,"Pointed bamboo foliage",transform,new Vector3(x+(j%2==0 ? .4f : -.4f),h-j*.8f,z),new Vector3(.85f,.025f,.12f),leaf);l.GetComponent<MeshFilter>().sharedMesh=BambooBlade();l.localScale=Vector3.one*.85f;l.localRotation=Quaternion.Euler(0,j*55,j%2==0 ? 20 : -20);
                 }
             }
-            sleeper=new GameObject("Sleeping red-headband panda").transform;sleeper.SetParent(transform,false);sleeper.localPosition=new Vector3(-.5f,3.3f,-.3f);sleeper.localRotation=Quaternion.Euler(0,-12,-8);
+            sleeper=new GameObject("Sleeping red-headband panda").transform;sleeper.SetParent(transform,false);sleeper.localPosition=new Vector3(-4.5f,3.3f,-.3f);sleeper.localRotation=Quaternion.Euler(0,-12,-8);
             Shape(PrimitiveType.Sphere,"Body",sleeper,new Vector3(.4f,0,0),new Vector3(1.7f,.95f,1),ivory);
             Shape(PrimitiveType.Sphere,"Shoulders",sleeper,new Vector3(-.1f,0,0),new Vector3(.65f,.9f,1.02f),black);
             Shape(PrimitiveType.Sphere,"Head",sleeper,new Vector3(-.7f,.12f,-.17f),new Vector3(1.05f,.95f,.95f),ivory);
@@ -263,13 +365,13 @@ namespace RollingPanda
             Shape(PrimitiveType.Sphere,"Red headband",sleeper,new Vector3(-.7f,.38f,-.18f),new Vector3(1.07f,.1f,.94f),red);
             Shape(PrimitiveType.Cube,"Headband ribbon",sleeper,new Vector3(-1.35f,.33f,-.1f),new Vector3(.5f,.1f,.08f),red);
             var bag=Mat("Loot pouch",new Color(.43f,.24f,.1f));
-            Shape(PrimitiveType.Sphere,"Overflowing loot pouch",transform,new Vector3(.4f,.5f,-1.5f),new Vector3(1.1f,1.1f,.9f),bag);
-            Shape(PrimitiveType.Cylinder,"Pouch mouth",transform,new Vector3(.4f,1,-1.5f),new Vector3(.72f,.1f,.66f),bark);
+            BuildPouch(new Vector3(-5,.05f,-2),bag,bark);
+
             var art=Resources.Load<GameArt>("Presentation/GameArt");
             Color[] colors={new Color(.04f,.65f,1),new Color(.95f,.06f,.12f),new Color(.15f,.9f,.32f)};
             for(int i=0;i<18;i++)
             {
-                var gem=Shape(PrimitiveType.Cube,"Loot gem",transform,new Vector3(.4f+(float)rng.NextDouble()*.8f-.4f,i<10 ? 1.05f+(float)rng.NextDouble()*.3f : .18f,-1.5f+(float)rng.NextDouble()*1.5f-.75f),Vector3.one*.24f,Mat("Gem",colors[i%3]));
+                var gem=Shape(PrimitiveType.Cube,"Loot gem",transform,new Vector3(-5+(float)rng.NextDouble()*.8f-.4f,i<10 ? .95f+(float)rng.NextDouble()*.25f : .18f,-2+(float)rng.NextDouble()*1.5f-.75f),Vector3.one*.24f,Mat("Gem",colors[i%3]));
                 if(art!=null&&art.Diamond!=null)
                 {
                     gem.GetComponent<MeshFilter>().sharedMesh=art.Diamond;
@@ -278,12 +380,17 @@ namespace RollingPanda
                 }
                 gem.localRotation=Quaternion.Euler(15,i*37,45);
             }
-            var petals=new GameObject("Drifting blossom petals");petals.transform.SetParent(transform,false);petals.transform.localPosition=new Vector3(-1,7,0);
+            var petals=new GameObject("Drifting blossom petals");petals.transform.SetParent(transform,false);petals.transform.localPosition=new Vector3(-6,7,0);
             var ps=petals.AddComponent<ParticleSystem>();var main=ps.main;main.maxParticles=48;main.startLifetime=7;main.startSpeed=.1f;main.startSize=.07f;main.startColor=new Color(1,.7f,.8f);main.gravityModifier=.025f;
             var emission=ps.emission;emission.rateOverTime=5;var shape=ps.shape;shape.shapeType=ParticleSystemShapeType.Box;shape.scale=new Vector3(7,.2f,3);
             var pm=new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));materials.Add(pm);pm.SetColor("_BaseColor",new Color(1,.7f,.8f));ps.GetComponent<ParticleSystemRenderer>().sharedMaterial=pm;
         }
-        void OnDestroy(){foreach(var m in materials) Destroy(m);}
+        void OnDestroy()
+        {
+            foreach(var m in materials) Destroy(m);
+            foreach(var mesh in meshes) Destroy(mesh);
+            if(entrance!=null) Destroy(entrance.gameObject);
+        }
     }
 }
 

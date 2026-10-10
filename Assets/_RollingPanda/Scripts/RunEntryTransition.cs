@@ -15,8 +15,11 @@ namespace RollingPanda
         IEnumerator Reveal(AsyncOperation operation)
         {
             Opacity=1;
-            operation.allowSceneActivation=true;
-            while(!operation.isDone) yield return null;
+            if(operation!=null)
+            {
+                operation.allowSceneActivation=true;
+                while(!operation.isDone) yield return null;
+            }
             // Let gameplay bootstrap and visual Start methods finish behind the cover.
             yield return null;
             yield return null;

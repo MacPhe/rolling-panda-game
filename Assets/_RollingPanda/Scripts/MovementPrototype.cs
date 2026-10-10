@@ -12,6 +12,8 @@ namespace RollingPanda
         [SerializeField] bool enableEndless = false;
         Material hurdleMaterial, beamMaterial, gemMaterial;
 
+        public void ConfigureEndless() { enableGameLoop=true; enableEndless=true; }
+
         void Awake()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");

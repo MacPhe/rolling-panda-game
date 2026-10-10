@@ -16,6 +16,8 @@ namespace RollingPanda
         ForestAtmosphere forest;
         Material ivory, ink, red, bamboo, leaves, stone, roof, gold;
 
+        public Transform Panda => panda;
+
         void Start()
         {
             runner = GetComponentInChildren<RunnerMotor>();
@@ -89,6 +91,7 @@ namespace RollingPanda
             if(gemArt!=null && gemArt.Diamond!=null)
                 foreach(var gem in GetComponentsInChildren<BlueGem>(true))
                     gem.gameObject.AddComponent<PickupArt>().Initialize(gemArt.Diamond,runner.Session);
+            if(RunEntryTransition.Active && !RunEntryTransition.Revealing && Object.FindAnyObjectByType<StartMenu>()!=null) panda.gameObject.SetActive(false);
             Material rock=Mat(shader,new Color(.7f,.76f,.84f));
             Material wood=Mat(shader,new Color(.28f,.16f,.085f));
             Material jumpAccent=Mat(shader,new Color(1,.65f,.12f));
