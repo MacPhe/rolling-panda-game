@@ -7,13 +7,14 @@ namespace RollingPanda
     {
         readonly List<BlueGem> gems = new List<BlueGem>();
         RunnerMotor runner;
-        float distance;
+        double distance;
+        public EndlessTrack Track { get; set; }
 #if UNITY_EDITOR || UNITY_STANDALONE
         bool previewSafeArea;
 #endif
         public bool Defeated { get; private set; }
         public int GemCount { get; private set; }
-        public int Score => Mathf.FloorToInt(distance) + GemCount * 10;
+        public long Score => (long)distance + (long)GemCount * 10;
         public string DefeatReason { get; private set; }
 
         public void Initialize(RunnerMotor player)
@@ -73,14 +74,14 @@ namespace RollingPanda
 
         void LateUpdate()
         {
-            if (runner != null && !Defeated && !runner.Paused)
-                distance = Mathf.Max(distance, runner.transform.position.z);
+            if (runner != null && !runner.Paused)
+                distance = System.Math.Max(distance, runner.DistanceTravelled);
         }
 
         public void Fail(string reason)
         {
             if (Defeated) return;
-            distance = Mathf.Max(distance, runner.transform.position.z);
+            distance = System.Math.Max(distance, runner.DistanceTravelled);
             Defeated = true;
             DefeatReason = reason;
         }
@@ -92,6 +93,7 @@ namespace RollingPanda
             GemCount = 0;
             distance = 0f;
             foreach (var gem in gems) gem.ResetGem();
+            if (Track != null) Track.ResetTrack();
         }
 
         void OnGUI()
@@ -106,10 +108,10 @@ namespace RollingPanda
             var label = new GUIStyle(GUI.skin.label) { fontSize = 16, wordWrap = true };
             var button = new GUIStyle(GUI.skin.button) { fontSize = 18 };
             GUI.Box(new Rect(8, 8, width - 16, 162), "Rolling Panda");
-            GUI.Label(new Rect(18, 34, width - 36, 26), $"Score {Score}     Gems {GemCount}     {Mathf.FloorToInt(distance)} m", label);
+            GUI.Label(new Rect(18, 34, width - 36, 26), $"Score {Score}   Gems {GemCount}   {(long)distance} m", label);
             GUI.Label(new Rect(18, 62, width - 36, 43), "Swipe or mouse-drag: left/right = lanes, up = jump, down = slide", label);
             GUI.Label(new Rect(18, 105, width - 36, 22), "Red: dodge  •  Gold: jump  •  Purple: slide", label);
-            string state = Defeated ? "Run ended — " + DefeatReason : runner.Finished ? "Course complete!" : runner.Paused ? "Paused — P to resume" : "Running — each gem adds 10 points";
+            string state = Defeated ? "Run ended — " + DefeatReason : runner.Finished ? "Course complete!" : runner.Paused ? "Paused — P to resume" : runner.Endless ? $"Endless run — speed {runner.CurrentSpeed:0.0} m/s" : "Running — each gem adds 10 points";
             GUI.Label(new Rect(18, 130, width - 36, 38), state, label);
             GUI.Box(new Rect(8, height - 76, width - 16, 68), "");
             bool restartClicked = GUI.Button(new Rect(16, height - 68, (width - 40) / 2, 52), "Restart", button);

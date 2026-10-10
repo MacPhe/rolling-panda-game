@@ -35,5 +35,6 @@ static class Program
         gesture.Begin(0, 0, 24, 2f, false);
         Expect(gesture.Move(0, 100, 2.1f), SwipeDirection.Up, "new gesture after reset");
         Console.WriteLine(count + " gesture regression checks passed.");
+        EndlessChecks.Run();
     }
 }

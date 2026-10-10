@@ -9,6 +9,7 @@ namespace RollingPanda
         RunnerMotor runner;
         Material groundMaterial, lineMaterial, playerMaterial, bandMaterial;
         [SerializeField] bool enableGameLoop = false;
+        [SerializeField] bool enableEndless = false;
         Material hurdleMaterial, beamMaterial, gemMaterial;
 
         void Awake()
@@ -25,11 +26,14 @@ namespace RollingPanda
             playerMaterial = MakeMaterial(shader, new Color(0.92f, 0.92f, 0.88f));
             bandMaterial = MakeMaterial(shader, new Color(0.8f, 0.08f, 0.06f));
 
+            if (!enableEndless)
+            {
             MakeCube("Ground — 1 km test track", new Vector3(0f, -0.15f, 495f), new Vector3(10f, 0.3f, 1030f), groundMaterial, true);
             foreach (float x in new[] { -4.8f, -1.5f, 1.5f, 4.8f })
                 MakeCube("Lane marking", new Vector3(x, 0.01f, 495f), new Vector3(0.08f, 0.02f, 1030f), lineMaterial, false);
             for (int z = 10; z < 990; z += 20)
                 MakeCube("Distance marker", new Vector3(0f, 0.015f, z), new Vector3(9.5f, 0.02f, 0.12f), lineMaterial, false);
+            }
 
             var player = new GameObject("Panda placeholder");
             player.transform.SetParent(transform);
@@ -80,6 +84,14 @@ namespace RollingPanda
             hurdleMaterial = MakeMaterial(shader, new Color(1f, 0.65f, 0.12f));
             beamMaterial = MakeMaterial(shader, new Color(0.6f, 0.22f, 0.85f));
             gemMaterial = MakeMaterial(shader, new Color(0.05f, 0.55f, 1f));
+            if (enableEndless)
+            {
+                runner.Endless = true;
+                var track = gameObject.AddComponent<EndlessTrack>();
+                session.Track = track;
+                track.Initialize(runner, session, groundMaterial, lineMaterial, bandMaterial, hurdleMaterial, beamMaterial, gemMaterial);
+                return;
+            }
             // Each row blocks one lane only. Adjacent lanes always offer a safe route.
             for (int row = 0; row < 24; row++)
             {
