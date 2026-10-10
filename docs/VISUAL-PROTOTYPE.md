@@ -90,3 +90,23 @@ Validation: editor and iOS-symbol compilation and existing gesture/endless check
 Play-mode review pending: run to 1500, 2400 and 3400 m; inspect warm shrine lighting,
 purple-beam/red-block visibility, reset to daylight, and scenery continuity after rebases.
 If running beyond 6000 m, check the dawn-to-daylight loop. Device profiling remains pending.
+
+## Mountain detail and obstacle art
+
+Added layered rock faces, moss shelves and horizontal strata to the hillsides, with
+ferns, exposed roots and weathered stepping stones outside the running lanes. All are
+non-colliding scenery combined into the existing section meshes at startup.
+
+VisualPrototype now dresses the existing pooled obstacle boxes as weathered stone
+ruins (red dodge marking), timber barriers (gold jump bands), and temple timber lintels
+(purple slide bands). The forms remain close to their collision bounds, without adding
+unmarked posts or changing the slide gap. All three variants are built once per obstacle;
+only the matching variant is active when the pooled obstacle changes type. No new
+colliders, gameplay rules, pickup positions or timing changes are introduced. The plain
+EndlessPrototype retains its original blocks for comparison.
+
+These are still procedural art forms, not finished sculpted/textured assets. Editor and
+iOS-symbol compilation and existing gameplay checks passed. Play-mode review pending:
+identify all three actions at speed in daylight and night, check purple-beam clearance,
+run past section recycling, and compare collision edges. Added geometry/renderers need
+profiling before making any mobile performance claims.

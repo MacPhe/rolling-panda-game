@@ -46,6 +46,30 @@ namespace RollingPanda
                     }
                     Shape(root,PrimitiveType.Sphere,new Vector3(side*6.5f,.15f,z+4),new Vector3(1.2f,.7f,.9f),stone);
                 }
+                // Rock faces, moss shelves and forest-floor detail form distinct depth layers.
+                for(int ridge=0;ridge<4;ridge++)
+                {
+                    float rz=12+ridge*24;
+                    var face=Shape(root,PrimitiveType.Cube,new Vector3(side*(26+ridge%2*5),5,rz),new Vector3(8,13+ridge%3*4,13),stone);
+                    face.localRotation=Quaternion.Euler(8+ridge*3,side*18,side*12);
+                    Shape(root,PrimitiveType.Sphere,new Vector3(side*(24+ridge%2*5),10,rz),new Vector3(9,2,15),grass);
+                    for(int layer=0;layer<3;layer++)
+                        Shape(root,PrimitiveType.Cube,new Vector3(side*(22+ridge%2*5),3+layer*2,rz),new Vector3(3,.22f,10),roof);
+                    for(int fern=0;fern<4;fern++)
+                    {
+                        float fx=side*(6.4f+fern*.6f), fz=rz+fern*2;
+                        for(int frond=0;frond<3;frond++)
+                        {
+                            var leafShape=Shape(root,PrimitiveType.Sphere,new Vector3(fx,.38f,fz),new Vector3(.16f,.15f,1.3f),leaf);
+                            leafShape.localRotation=Quaternion.Euler(-22,frond*60+ridge*17,0);
+                        }
+                        var rootShape=Shape(root,PrimitiveType.Cylinder,new Vector3(side*7,.15f,fz+1),new Vector3(.16f,.9f,.16f),bark);
+                        rootShape.localRotation=Quaternion.Euler(90,side*35,0);
+                    }
+                    // Weathered stepping stones lead toward the roadside shrines.
+                    for(int step=0;step<4;step++)
+                        Shape(root,PrimitiveType.Cube,new Vector3(side*(5.8f+step*.48f),.04f,rz+5),new Vector3(.38f,.08f,.7f),stone);
+                }
                 Pavilion(root,side*11,48,stone,roof,red,trim);
                 Shrine(root,side*7,18,stone,roof,trim);
                 Shrine(root,side*7,78,stone,roof,trim);
@@ -124,4 +148,5 @@ namespace RollingPanda
         void OnDestroy(){ foreach(var mesh in ownedMeshes) if(mesh!=null) Destroy(mesh); if(glow!=null) Destroy(glow); }
     }
 }
+
 

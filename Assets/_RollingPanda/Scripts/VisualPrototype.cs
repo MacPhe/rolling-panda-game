@@ -83,6 +83,11 @@ namespace RollingPanda
             Camera camera = Camera.main;
             if (camera != null) { camera.backgroundColor = RenderSettings.fogColor; camera.clearFlags = CameraClearFlags.SolidColor; }
             gameObject.AddComponent<RunAtmosphere>().Initialize(runner,forest,leaves,bamboo);
+            Material wood=Mat(shader,new Color(.28f,.16f,.085f));
+            Material jumpAccent=Mat(shader,new Color(1,.65f,.12f));
+            Material slideAccent=Mat(shader,new Color(.6f,.22f,.85f));
+            foreach(var obstacle in GetComponentsInChildren<RunnerObstacle>(true))
+                obstacle.gameObject.AddComponent<ObstacleArt>().Initialize(stone,wood,red,jumpAccent,slideAccent,leaves);
         }
 
         Transform Limb(string name, Vector3 pivot, Vector3 scale, Material material)
@@ -178,6 +183,7 @@ namespace RollingPanda
         void OnDestroy() { foreach(var material in materials) if(material != null) Destroy(material); }
     }
 }
+
 
 
 
