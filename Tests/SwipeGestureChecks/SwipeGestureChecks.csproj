@@ -6,6 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
+    <Compile Include="EndlessChecks.cs" />
+    <Compile Include="../../Assets/_RollingPanda/Scripts/EndlessRules.cs" Link="EndlessRules.cs" />
     <Compile Include="../../Assets/_RollingPanda/Scripts/SwipeGesture.cs" Link="SwipeGesture.cs" />
   </ItemGroup>
 </Project>

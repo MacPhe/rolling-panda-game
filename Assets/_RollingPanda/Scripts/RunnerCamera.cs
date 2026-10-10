@@ -36,5 +36,10 @@ namespace RollingPanda
         }
 
         void Aim() => transform.LookAt(new Vector3(0f, 1f, target.position.z + 6f));
+        public void ShiftOrigin(float shift)
+        {
+            transform.position -= Vector3.forward * shift;
+            previousTargetPosition -= Vector3.forward * shift;
+        }
     }
 }

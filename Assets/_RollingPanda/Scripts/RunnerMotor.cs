@@ -20,10 +20,14 @@ namespace RollingPanda
         float verticalSpeed, slideTime;
         int lane;
         bool paused;
+        readonly Collider[] overlapResults = new Collider[16];
         public GameSession Session { get; set; }
+        public bool Endless { get; set; }
+        public double DistanceTravelled { get; private set; }
+        public float CurrentSpeed => Endless ? EndlessRules.Speed(DistanceTravelled) : ForwardSpeed;
 
         public bool Paused => paused;
-        public bool Finished => transform.position.z >= FinishDistance;
+        public bool Finished => !Endless && transform.position.z >= FinishDistance;
         public bool Sliding => slideTime > 0f;
 
         public void Initialize(Transform playerVisual)
@@ -74,17 +78,20 @@ namespace RollingPanda
 
             verticalSpeed += Gravity * dt;
             float targetX = Mathf.MoveTowards(transform.position.x, lane * LaneSpacing, LateralSpeed * dt);
-            float forward = Mathf.Min(ForwardSpeed * dt, FinishDistance - transform.position.z);
+            float forward = Endless ? CurrentSpeed * dt : Mathf.Min(ForwardSpeed * dt, FinishDistance - transform.position.z);
+            float beforeZ = transform.position.z;
             var flags = controller.Move(new Vector3(targetX - transform.position.x, verticalSpeed * dt, forward));
+            DistanceTravelled += Mathf.Max(0f, transform.position.z - beforeZ);
             if ((flags & CollisionFlags.Above) != 0 && verticalSpeed > 0f) verticalSpeed = 0f;
             if (Session != null && !Session.Defeated)
             {
                 // Catch any obstacle overlapping the current capsule after movement.
                 Vector3 center = transform.position + controller.center;
                 float halfSegment = controller.height * 0.5f - controller.radius;
-                foreach (var hit in Physics.OverlapCapsule(center + Vector3.up * halfSegment,
-                    center - Vector3.up * halfSegment, controller.radius, ~0, QueryTriggerInteraction.Ignore))
-                    if (hit.TryGetComponent<RunnerObstacle>(out var obstacle)) Session.Fail(obstacle.Instruction);
+                int count = Physics.OverlapCapsuleNonAlloc(center + Vector3.up * halfSegment,
+                    center - Vector3.up * halfSegment, controller.radius, overlapResults, ~0, QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < count; i++)
+                    if (overlapResults[i].TryGetComponent<RunnerObstacle>(out var obstacle)) Session.Fail(obstacle.Instruction);
             }
         }
 
@@ -98,11 +105,12 @@ namespace RollingPanda
         {
             Vector3 center = transform.position + Vector3.up * (StandingHeight * 0.5f);
             float halfSegment = StandingHeight * 0.5f - controller.radius;
-            foreach (var hit in Physics.OverlapCapsule(center + Vector3.up * halfSegment,
+            int count = Physics.OverlapCapsuleNonAlloc(center + Vector3.up * halfSegment,
                 center - Vector3.up * halfSegment, controller.radius + controller.skinWidth,
-                ~0, QueryTriggerInteraction.Ignore))
-                if (hit.TryGetComponent<RunnerObstacle>(out _)) return false;
-            return true;
+                overlapResults, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+                if (overlapResults[i].TryGetComponent<RunnerObstacle>(out _)) return false;
+            return count < overlapResults.Length;
         }
 
         void SetStanding(bool standing)
@@ -124,11 +132,18 @@ namespace RollingPanda
             verticalSpeed = 0f;
             slideTime = 0f;
             paused = false;
+            DistanceTravelled = 0;
             RunnerInput.Reset();
             SetStanding(true);
             if (Session != null) Session.ResetRun();
         }
         public void TogglePause() { paused = !paused; RunnerInput.Reset(); }
+        public void ShiftOrigin(float shift)
+        {
+            controller.enabled = false;
+            transform.position -= Vector3.forward * shift;
+            controller.enabled = true;
+        }
         void OnApplicationFocus(bool focused) { if (!focused) { paused = true; RunnerInput.Reset(); } }
         void OnApplicationPause(bool suspended) { if (suspended) { paused = true; RunnerInput.Reset(); } }
     }

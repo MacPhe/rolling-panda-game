@@ -1,5 +1,7 @@
 # Rolling Panda
 
+**Endless checkpoint:** open `Assets/_RollingPanda/Scenes/EndlessPrototype.unity` for recycled track sections, varying obstacle rows, and a capped speed increase. See [endless run checks](docs/ENDLESS-PROTOTYPE.md). Earlier scenes remain fixed-course checkpoints.
+
 **Touch checkpoint:** in `GameLoopPrototype`, swipe or mouse-drag across the track to change lanes, jump, and slide. Bottom buttons pause/resume and restart. F8 previews safe-area insets on desktop. See [touch controls and checks](docs/TOUCH-CONTROLS.md). iPhone device testing is deferred.
 
 **First game loop:** open `Assets/_RollingPanda/Scenes/GameLoopPrototype.unity` and press Play for obstacles, blue gems, score, defeat, and restart. See [game loop controls and checks](docs/GAME-LOOP-PROTOTYPE.md).
