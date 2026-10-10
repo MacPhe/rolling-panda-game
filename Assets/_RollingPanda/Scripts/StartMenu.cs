@@ -368,6 +368,7 @@ namespace RollingPanda
             Shape(PrimitiveType.Sphere,"Nose",sleeper,new Vector3(-.72f,-.05f,-.66f),new Vector3(.19f,.12f,.1f),black);
             Shape(PrimitiveType.Sphere,"Red headband",sleeper,new Vector3(-.7f,.38f,-.18f),new Vector3(1.07f,.1f,.94f),red);
             Shape(PrimitiveType.Cube,"Headband ribbon",sleeper,new Vector3(-1.35f,.33f,-.1f),new Vector3(.5f,.1f,.08f),red);
+            sleeper.gameObject.AddComponent<PandaAppearance>().Initialize(null,null,null,true);
             var bag=Mat("Loot pouch",new Color(.43f,.24f,.1f));
             BuildPouch(new Vector3(-5,.05f,-2),bag,bark);
 
@@ -397,5 +398,6 @@ namespace RollingPanda
         }
     }
 }
+
 
 

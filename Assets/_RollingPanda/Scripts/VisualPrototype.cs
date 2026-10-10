@@ -76,6 +76,7 @@ namespace RollingPanda
                 part.SetParent(headRig,false);
                 part.localPosition = position - new Vector3(0,1.6f,0);
             }
+            panda.gameObject.AddComponent<PandaAppearance>().Initialize(headRig,leftArm,rightArm);
             foreach (Transform child in transform)
                 if (child.name.StartsWith("Track section ")) Decorate(child);
             RenderSettings.fog = true;
@@ -206,6 +207,7 @@ namespace RollingPanda
         void OnDestroy() { foreach(var material in materials) if(material != null) Destroy(material); }
     }
 }
+
 
 
 
