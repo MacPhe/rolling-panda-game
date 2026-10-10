@@ -88,9 +88,9 @@ namespace RollingPanda
             if (camera != null) { camera.backgroundColor = RenderSettings.fogColor; camera.clearFlags = CameraClearFlags.SolidColor; }
             gameObject.AddComponent<RunAtmosphere>().Initialize(runner,forest,leaves,bamboo);
             var gemArt=Resources.Load<GameArt>("Presentation/GameArt");
-            if(gemArt!=null && gemArt.Diamond!=null)
-                foreach(var gem in GetComponentsInChildren<BlueGem>(true))
-                    gem.gameObject.AddComponent<PickupArt>().Initialize(gemArt.Diamond,runner.Session);
+            var gemPresentation=gameObject.AddComponent<GemPresentation>();
+            foreach(var gem in GetComponentsInChildren<BlueGem>(true))
+                gem.gameObject.AddComponent<PickupArt>().Initialize(gemArt==null ? null : gemArt.Diamond,runner.Session,gemPresentation);
             if(RunEntryTransition.Active && !RunEntryTransition.Revealing && Object.FindAnyObjectByType<StartMenu>()!=null) panda.gameObject.SetActive(false);
             Material rock=Mat(shader,new Color(.7f,.76f,.84f));
             Material wood=Mat(shader,new Color(.28f,.16f,.085f));

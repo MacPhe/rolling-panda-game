@@ -54,6 +54,7 @@ namespace RollingPanda
             world.SetActive(true);
             chaseCamera=view.GetComponent<RunnerCamera>();chaseCamera.enabled=false;
             gameRunner=world.GetComponentInChildren<RunnerMotor>();
+            foreach(var wind in GetComponentsInChildren<ForestWind>()) wind.Bind(gameRunner);
             yield return null;
             yield return null;
             if(worldArt.Panda!=null) worldArt.Panda.gameObject.SetActive(false);
@@ -257,6 +258,7 @@ namespace RollingPanda
             Bounds bounds=renderers[0].bounds;foreach(var renderer in renderers) bounds.Encapsulate(renderer.bounds);
             float scale=height/Mathf.Max(.01f,height>=6 ? bounds.size.y : Mathf.Max(bounds.size.x,Mathf.Max(bounds.size.y,bounds.size.z)));
             var wrapper=new GameObject("Grounded menu prop").transform;wrapper.SetParent(transform,false);wrapper.localPosition=position;wrapper.localRotation=Quaternion.Euler(0,yaw,0);
+            if(height>=6 || prefab.name.StartsWith("Bush")) wrapper.gameObject.AddComponent<ForestWind>().Initialize(gameRunner,height>=6 ? .65f : 1.2f,yaw*.03f);
             go.transform.SetParent(wrapper,false);go.transform.localScale=Vector3.one*scale;
             go.transform.localPosition=new Vector3(-bounds.center.x,-bounds.min.y,-bounds.center.z)*scale;
             var copies=new Dictionary<Material,Material>();
@@ -342,11 +344,13 @@ namespace RollingPanda
             {
                 float x=i<12 ? -8.5f+(i%4)*.45f : -4.8f+(i%4)*.3f,z=2+i%6;
                 float h=4+i%5*.6f;
-                Branch(transform,new Vector3(x,0,z),new Vector3(x+.3f,h,z),.09f,green);
-                for(int node=1;node<h;node++) Shape(PrimitiveType.Cylinder,"Bamboo node",transform,new Vector3(x+.3f*node/h,node,z),new Vector3(.115f,.025f,.115f),leaf);
+                var clump=new GameObject("Swaying bamboo").transform;clump.SetParent(transform,false);clump.localPosition=new Vector3(x,0,z);
+                clump.gameObject.AddComponent<ForestWind>().Initialize(gameRunner,1.2f,i*.7f);
+                Branch(clump,Vector3.zero,new Vector3(.3f,h,0),.09f,green);
+                for(int node=1;node<h;node++) Shape(PrimitiveType.Cylinder,"Bamboo node",clump,new Vector3(.3f*node/h,node,0),new Vector3(.115f,.025f,.115f),leaf);
                 for(int j=0;j<6;j++)
                 {
-                    var l=Shape(PrimitiveType.Cube,"Pointed bamboo foliage",transform,new Vector3(x+(j%2==0 ? .4f : -.4f),h-j*.8f,z),new Vector3(.85f,.025f,.12f),leaf);l.GetComponent<MeshFilter>().sharedMesh=BambooBlade();l.localScale=Vector3.one*.85f;l.localRotation=Quaternion.Euler(0,j*55,j%2==0 ? 20 : -20);
+                    var l=Shape(PrimitiveType.Cube,"Pointed bamboo foliage",clump,new Vector3(j%2==0 ? .4f : -.4f,h-j*.8f,0),new Vector3(.85f,.025f,.12f),leaf);l.GetComponent<MeshFilter>().sharedMesh=BambooBlade();l.localScale=Vector3.one*.85f;l.localRotation=Quaternion.Euler(0,j*55,j%2==0 ? 20 : -20);
                 }
             }
             sleeper=new GameObject("Sleeping red-headband panda").transform;sleeper.SetParent(transform,false);sleeper.localPosition=new Vector3(-4.5f,3.3f,-.3f);sleeper.localRotation=Quaternion.Euler(0,-12,-8);

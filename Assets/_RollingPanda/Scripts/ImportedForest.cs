@@ -65,6 +65,7 @@ namespace RollingPanda
             // A wrapper normalizes arbitrary vendor pivots while keeping the base grounded.
             var wrapper=new GameObject("Grounded forest prop").transform;wrapper.SetParent(parent,false);
             wrapper.localPosition=position;wrapper.localRotation=Quaternion.Euler(0,yaw,0);
+            if(tree || prefabs[index%prefabs.Length].name.StartsWith("Bush")) wrapper.gameObject.AddComponent<ForestWind>().Initialize(runner,tree ? .85f : 1.4f,index*.91f+yaw*.02f);
             go.transform.SetParent(wrapper,false);go.transform.localScale=Vector3.one*scale;
             Vector3 localCentre=parent.InverseTransformPoint(bounds.center);
             float bottom=parent.InverseTransformPoint(new Vector3(bounds.center.x,bounds.min.y,bounds.center.z)).y;
