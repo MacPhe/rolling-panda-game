@@ -110,3 +110,29 @@ iOS-symbol compilation and existing gameplay checks passed. Play-mode review pen
 identify all three actions at speed in daylight and night, check purple-beam clearance,
 run past section recycling, and compare collision edges. Added geometry/renderers need
 profiling before making any mobile performance claims.
+
+## Rocks, floating lanterns and enclosed forest
+
+Dodge obstacles are now large asymmetrical faceted rock formations with red mineral
+markings. Jump obstacles are smaller uneven rock formations with gold markings. Slide
+obstacles are luminous purple floating lanterns with timber caps and gold ribs. Lanterns
+stay at the tested beam height; no bobbing or tassels change their clearance. Original
+box collisions remain conservative at the rocks' chamfered upper corners; check the
+visual/collision agreement before choosing final authored rock assets.
+
+The visual scene road now uses staggered cobbles with small rotational variation, built
+directly as one surface mesh per pooled section before scenery batching. Original bright
+lane lines and distance stripes are hidden only in VisualPrototype. Collision stays flat
+so cobbles do not alter jumps, ground detection or slide movement.
+
+Grassy knolls, layered shrubs, grass sprays and high foliage crowns fill the roadside
+and draw the forest closer around the path. Running lanes stay open; all extra scenery
+is non-colliding. Existing day/night palette transitions and shrine lighting are retained.
+Generated rock meshes and lantern materials are cleaned up with the scene. No spawning
+of art occurs during the run. These remain procedural geometry rather than finished
+sculpted/textured assets; increased scenery density needs device profiling.
+
+Validation: editor and iOS-symbol compilation and existing gameplay checks passed.
+Play-mode appearance review pending: dodge/jump rock readability and edge collisions,
+lantern slide clearance in daylight/night, cobble continuity at section joins, forest
+occlusion in portrait, and recycling after 960 m. EndlessPrototype remains unchanged.

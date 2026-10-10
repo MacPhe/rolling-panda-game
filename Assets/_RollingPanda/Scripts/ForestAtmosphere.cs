@@ -19,6 +19,9 @@ namespace RollingPanda
             }
             var root = new GameObject("Layered forest and shrines").transform;
             root.SetParent(section,false);
+            Cobbles(root,stone);
+            foreach(Transform child in section)
+                if(child.name=="Lane line" || child.name=="Distance stripe") child.GetComponent<Renderer>().enabled=false;
             for(int side=-1;side<=1;side+=2)
             {
                 Shape(root,PrimitiveType.Cube,new Vector3(side*17,-.6f,48),new Vector3(24,1,96),grass);
@@ -45,6 +48,24 @@ namespace RollingPanda
                         tuft.localRotation=Quaternion.Euler(blade%2*18,blade*31,side*18);
                     }
                     Shape(root,PrimitiveType.Sphere,new Vector3(side*6.5f,.15f,z+4),new Vector3(1.2f,.7f,.9f),stone);
+                }
+                for(int cluster=0;cluster<12;cluster++)
+                {
+                    float z=4+cluster*8;
+                    Shape(root,PrimitiveType.Sphere,new Vector3(side*6.5f,-.1f,z),new Vector3(2.4f,1.2f,4),grass);
+                    for(int bush=0;bush<4;bush++)
+                    {
+                        float x=side*(7.2f+bush*2.3f);
+                        var shrub=Shape(root,PrimitiveType.Sphere,new Vector3(x,.7f+bush*.18f,z+bush%2*2),new Vector3(2.6f,1.5f,2.4f),bush%2==0 ? leaf : grass);
+                        shrub.localRotation=Quaternion.Euler(0,cluster*29,12);
+                        for(int blade=0;blade<4;blade++)
+                        {
+                            var spray=Shape(root,PrimitiveType.Cube,new Vector3(x,.65f,z+blade*.35f),new Vector3(.07f,1.2f,.28f),grass);
+                            spray.localRotation=Quaternion.Euler(blade*9,blade*41,side*24);
+                        }
+                    }
+                    var crown=Shape(root,PrimitiveType.Sphere,new Vector3(side*7,6.8f,z),new Vector3(5.5f,.7f,4),leaf);
+                    crown.localRotation=Quaternion.Euler(0,cluster*19,side*12);
                 }
                 // Rock faces, moss shelves and forest-floor detail form distinct depth layers.
                 for(int ridge=0;ridge<4;ridge++)
@@ -75,6 +96,23 @@ namespace RollingPanda
                 Shrine(root,side*7,78,stone,roof,trim);
             }
             Combine(root);
+        }
+        void Cobbles(Transform root,Material stone)
+        {
+            // One surface mesh, without hundreds of individual cobble objects.
+            var sample=GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Mesh cube=sample.GetComponent<MeshFilter>().sharedMesh;sample.SetActive(false);Destroy(sample);
+            var instances=new CombineInstance[9*64];int count=0;
+            for(int row=0;row<64;row++) for(int col=0;col<9;col++)
+            {
+                float x=-4.2f+col*1.05f+(row%2==0 ? -.08f : .08f);
+                float z=.75f+row*1.5f;
+                float skew=((row*13+col*7)%5-2)*1.2f;
+                instances[count++]=new CombineInstance{mesh=cube,transform=Matrix4x4.TRS(new Vector3(x,.008f,z),Quaternion.Euler(0,skew,0),new Vector3(.98f,.016f,1.41f))};
+            }
+            var mesh=new Mesh();mesh.CombineMeshes(instances,true,true);ownedMeshes.Add(mesh);
+            var go=new GameObject("Cobbled forest road");go.transform.SetParent(root,false);
+            go.AddComponent<MeshFilter>().sharedMesh=mesh;go.AddComponent<MeshRenderer>().sharedMaterial=stone;
         }
         void Pavilion(Transform root,float x,float z,Material stone,Material roof,Material red,Material trim)
         {
@@ -148,5 +186,6 @@ namespace RollingPanda
         void OnDestroy(){ foreach(var mesh in ownedMeshes) if(mesh!=null) Destroy(mesh); if(glow!=null) Destroy(glow); }
     }
 }
+
 
 
