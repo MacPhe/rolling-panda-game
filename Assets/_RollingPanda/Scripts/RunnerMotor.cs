@@ -31,6 +31,7 @@ namespace RollingPanda
             controller = GetComponent<CharacterController>();
             visual = playerVisual;
             startPosition = transform.position;
+            RunnerInput.Reset();
             SetStanding(true);
         }
 
@@ -123,8 +124,12 @@ namespace RollingPanda
             verticalSpeed = 0f;
             slideTime = 0f;
             paused = false;
+            RunnerInput.Reset();
             SetStanding(true);
             if (Session != null) Session.ResetRun();
         }
+        public void TogglePause() { paused = !paused; RunnerInput.Reset(); }
+        void OnApplicationFocus(bool focused) { if (!focused) { paused = true; RunnerInput.Reset(); } }
+        void OnApplicationPause(bool suspended) { if (suspended) { paused = true; RunnerInput.Reset(); } }
     }
 }

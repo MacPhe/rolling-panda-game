@@ -25,3 +25,5 @@
 *.jks
 .DS_Store
 Thumbs.db
+**/bin/
+**/obj/
