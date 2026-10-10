@@ -6,6 +6,7 @@ namespace RollingPanda
     {
         GameSession session;
         bool collected;
+        public PickupKind Kind { get; set; } = PickupKind.Blue;
 
         public void Initialize(GameSession game) => session = game;
 
@@ -14,7 +15,7 @@ namespace RollingPanda
             if (collected || session == null || !other.TryGetComponent<RunnerMotor>(out var runner)
                 || runner.Session != session || runner.Paused || runner.Finished || session.Defeated) return;
             collected = true;
-            session.CollectGem();
+            session.CollectGem(Kind);
             gameObject.SetActive(false);
         }
 

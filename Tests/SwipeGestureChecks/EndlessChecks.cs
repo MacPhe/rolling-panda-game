@@ -51,10 +51,10 @@ static class EndlessChecks
         for (int distance = 0; distance <= 100000; distance++)
         {
             float speed = EndlessRules.Speed(distance);
-            if (speed < 14 || speed > 26 || speed < previous) throw new Exception("Unsafe speed ramp");
+            if (speed < 15 || speed > 32 || speed < previous) throw new Exception("Unsafe speed ramp");
             previous = speed;
         }
-        if (EndlessRules.Speed(0) != 14 || EndlessRules.Speed(1800) != 26 || EndlessRules.Speed(double.MaxValue) != 26)
+        if (EndlessRules.Speed(0) != 15 || EndlessRules.Speed(2550) != 32 || EndlessRules.Speed(double.MaxValue) != 32)
             throw new Exception("Speed endpoints changed");
         double previousRow = -100;
         for (long section = 1; section < 10000; section++)
@@ -64,8 +64,49 @@ static class EndlessChecks
                 if (position - previousRow < 32) throw new Exception("Obstacle rows too close");
                 previousRow = position;
             }
-        if (32.0 / EndlessRules.MaximumSpeed < 6.0 / 12.0 + 0.7)
-            throw new Exception("Insufficient two-lane transition margin");
+        if (24.0 / EndlessRules.MaximumSpeed < 3.0 / 12.0 + 0.35)
+            throw new Exception("Insufficient adjacent-lane transition margin");
+        int redCount = 0, blueCount = 0, pouchCount = 0;
+        long previousPouch = -1;
+        for (long section = 0; section < 10000; section++)
+        {
+            for (int row = 0; row < 2; row++)
+            {
+                int current = EndlessRules.SafeLane(section, row);
+                int nextSafe = row == 0 ? EndlessRules.SafeLane(section, 1) : EndlessRules.SafeLane(section + 1, 0);
+                int intermediate = EndlessRules.IntermediateLane(section, row);
+                if (Math.Abs(current - nextSafe) != 1 || intermediate == current || intermediate == nextSafe || Math.Abs(intermediate) > 1)
+                    throw new Exception("Intermediate blocks the connecting route");
+                if (EndlessRules.HasIntermediate(section, row) != (EndlessRules.Start(section) + 48 + row * 48 > 600))
+                    throw new Exception("Intermediate introduction threshold changed");
+                for (int gem = 0; gem < 5; gem++)
+                {
+                    double gemDistance = EndlessRules.Start(section) + EndlessRules.RowOffset(section, row) - 8 + gem * 4;
+                    var kind = PickupRules.Gem(gemDistance, section, row, gem);
+                    if (kind == PickupKind.Red) { redCount++; if (gemDistance <= 1000) throw new Exception("Early red gem"); }
+                    else blueCount++;
+                }
+            }
+            if (PickupRules.HasPouch(section))
+            {
+                if (EndlessRules.Start(section) + 24 <= 2250 || (previousPouch >= 0 && section - previousPouch < 6))
+                    throw new Exception("Pouch threshold/rarity regression");
+                previousPouch = section; pouchCount++;
+                int kind = EndlessRules.ObstacleKind(section, 0, PickupRules.PouchSlot(section));
+                float pouchY = PickupRules.PouchHeight(section);
+                if (kind == 0 || (kind == 1 && (pouchY - 0.25f <= 0.85f || pouchY > 4.2f))
+                    || (kind == 2 && (pouchY - 0.25f <= 0 || pouchY + 0.25f >= 1.35f)))
+                    throw new Exception("Pouch placement unreachable or intersects obstacle");
+            }
+        }
+        if (redCount == 0 || blueCount == 0 || pouchCount == 0) throw new Exception("Collectible coverage missing");
+        var pickups = new RunPickups();
+        pickups.Collect(PickupKind.Blue); pickups.Collect(PickupKind.Red); pickups.Collect(PickupKind.Pouch);
+        if (pickups.Points != 35 || pickups.Blue != 1 || pickups.Red != 1 || pickups.Pouches != 1
+            || PickupRules.Points(PickupKind.Blue) != 10 || PickupRules.Points(PickupKind.Red) != 25 || PickupRules.Points(PickupKind.Pouch) != 0)
+            throw new Exception("Collectible value/count regression");
+        pickups.Reset();
+        if (pickups.Points != 0 || pickups.Blue != 0 || pickups.Red != 0 || pickups.Pouches != 0) throw new Exception("Pickup reset failed");
 
         // Mathematical coverage/rebase stress check; physical seams still need Unity testing.
         double origin = 0;
@@ -87,6 +128,6 @@ static class EndlessChecks
             if (local >= EndlessRules.OriginStep || local < 0) throw new Exception("Origin rebase failed");
         }
         if (rebases < 100) throw new Exception("Origin stress coverage missing");
-        Console.WriteLine("Endless rules passed: 30,000 row slots, multi-lane safety, spacing, 100,001 speed samples, 100 km pool/rebase simulation.");
+        Console.WriteLine("Endless rules passed: 30,000 row slots, intermediate routes, collectible thresholds/values/reset, 100,001 speed samples, 100 km pool/rebase simulation.");
     }
 }

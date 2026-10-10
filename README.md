@@ -1,5 +1,7 @@
 # Rolling Panda
 
+**Collectibles and skill checkpoint:** EndlessPrototype now starts at 15 m/s and caps at 32. Single rows appear between double rows after 600 m, red gems award 25 points after 1,000 m, and rare green pouch placeholders appear after 2,250 m. Blue gems remain 10 points. Pouches are counted per run, ready for later currency design. See [current endless checks](docs/ENDLESS-PROTOTYPE.md).
+
 **Endless checkpoint:** open `Assets/_RollingPanda/Scenes/EndlessPrototype.unity` for recycled track sections, varying obstacle rows, and a capped speed increase. See [endless run checks](docs/ENDLESS-PROTOTYPE.md). Earlier scenes remain fixed-course checkpoints.
 
 **Touch checkpoint:** in `GameLoopPrototype`, swipe or mouse-drag across the track to change lanes, jump, and slide. Bottom buttons pause/resume and restart. F8 previews safe-area insets on desktop. See [touch controls and checks](docs/TOUCH-CONTROLS.md). iPhone device testing is deferred.

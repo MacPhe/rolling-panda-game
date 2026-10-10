@@ -7,11 +7,17 @@ namespace RollingPanda
         public const int SectionCount = 8;
         public const float SectionLength = 96f;
         public const float OriginStep = 960f;
-        public const float MaximumSpeed = 26f;
-        public static float Speed(double distance) => (float)Math.Min(MaximumSpeed, 14.0 + Math.Max(0.0, distance) / 150.0);
+        public const float MaximumSpeed = 32f;
+        public static float Speed(double distance) => (float)Math.Min(MaximumSpeed, 15.0 + Math.Max(0.0, distance) / 150.0);
         public static double Start(long index) => index * (double)SectionLength - 48.0;
-        public static int RowCount(long section) => Start(section) >= 2000 ? 3 : 2;
-        public static float RowOffset(long section, int row) => RowCount(section) == 3 ? 16 + row * 32 : 24 + row * 48;
+        public static int RowCount(long section) => 2;
+        public static float RowOffset(long section, int row) => 24 + row * 48;
+        public static bool HasIntermediate(long section, int row) => Start(section) + 48 + row * 48 > 600;
+        public static int IntermediateLane(long section, int row)
+        {
+            int next = row == 0 ? SafeLane(section, 1) : SafeLane(section + 1, 0);
+            return -SafeLane(section, row) - next;
+        }
         public static int ObstacleCount(long section, int row)
         {
             if (section == 0 || row >= RowCount(section)) return 0;
@@ -20,10 +26,18 @@ namespace RollingPanda
             if (distance < 300) return (section + row) % 2 == 0 ? 2 : 1;
             return 2;
         }
-        public static int SafeLane(long section, int row) => (Pattern(section, row) / 3 + 1) % 3 - 1;
+        public static int SafeLane(long section, int row)
+        {
+            long ordinal = section * 2 + row;
+            int phase = (int)(ordinal % 4);
+            int side = Pattern(ordinal / 4, 0) % 2 == 0 ? -1 : 1;
+            return phase == 0 ? side : phase == 2 ? -side : 0;
+        }
         public static int ObstacleLane(long section, int row, int slot)
         {
-            int primary = Pattern(section, row) / 3 - 1;
+            int safe = SafeLane(section, row);
+            int primary = safe == -1 ? 0 : -1;
+            if (Pattern(section, row) % 2 != 0) primary = -safe - primary;
             return slot == 0 ? primary : -primary - SafeLane(section, row);
         }
         public static int ObstacleKind(long section, int row, int slot) => (Pattern(section, row) + slot * (1 + (int)(section % 2))) % 3;

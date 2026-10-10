@@ -13,8 +13,9 @@ namespace RollingPanda
         bool previewSafeArea;
 #endif
         public bool Defeated { get; private set; }
-        public int GemCount { get; private set; }
-        public long Score => (long)distance + (long)GemCount * 10;
+        readonly RunPickups pickups = new RunPickups();
+        public int GemCount => pickups.Blue;
+        public long Score => (long)distance + pickups.Points;
         public string DefeatReason { get; private set; }
 
         public void Initialize(RunnerMotor player)
@@ -70,7 +71,7 @@ namespace RollingPanda
             return yFromTop < 178f * scale || yFromTop > safe.height - 80f * scale;
         }
         public void RegisterGem(BlueGem gem) { gems.Add(gem); gem.Initialize(this); }
-        public void CollectGem() { if (!Defeated) GemCount++; }
+        public void CollectGem(PickupKind kind) { if (!Defeated) pickups.Collect(kind); }
 
         void LateUpdate()
         {
@@ -90,7 +91,7 @@ namespace RollingPanda
         {
             Defeated = false;
             DefeatReason = null;
-            GemCount = 0;
+            pickups.Reset();
             distance = 0f;
             foreach (var gem in gems) gem.ResetGem();
             if (Track != null) Track.ResetTrack();
@@ -108,9 +109,9 @@ namespace RollingPanda
             var label = new GUIStyle(GUI.skin.label) { fontSize = 16, wordWrap = true };
             var button = new GUIStyle(GUI.skin.button) { fontSize = 18 };
             GUI.Box(new Rect(8, 8, width - 16, 162), "Rolling Panda");
-            GUI.Label(new Rect(18, 34, width - 36, 26), $"Score {Score}   Gems {GemCount}   {(long)distance} m", label);
-            GUI.Label(new Rect(18, 62, width - 36, 43), "Swipe or mouse-drag: left/right = lanes, up = jump, down = slide", label);
-            GUI.Label(new Rect(18, 105, width - 36, 22), "Red: dodge  •  Gold: jump  •  Purple: slide", label);
+            GUI.Label(new Rect(18, 34, width - 36, 26), $"Score {Score}     {(long)distance} m", label);
+            GUI.Label(new Rect(18, 62, width - 36, 43), $"Blue {pickups.Blue}   Red {pickups.Red}   Pouches {pickups.Pouches}", label);
+            GUI.Label(new Rect(18, 105, width - 36, 22), "Swipe: left/right lanes • up jump • down slide", label);
             string state = Defeated ? "Run ended — " + DefeatReason : runner.Finished ? "Course complete!" : runner.Paused ? "Paused — P to resume" : runner.Endless ? $"Endless run — speed {runner.CurrentSpeed:0.0} m/s" : "Running — each gem adds 10 points";
             GUI.Label(new Rect(18, 130, width - 36, 38), state, label);
             GUI.Box(new Rect(8, height - 76, width - 16, 68), "");
