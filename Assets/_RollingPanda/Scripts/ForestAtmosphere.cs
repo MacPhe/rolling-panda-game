@@ -7,8 +7,16 @@ namespace RollingPanda
     public sealed class ForestAtmosphere : MonoBehaviour
     {
         readonly List<Mesh> ownedMeshes = new List<Mesh>();
+        public readonly List<Transform> LampSockets = new List<Transform>();
+        Material glow;
+        public void SetWarmth(float darkness) { if(glow!=null) glow.SetColor("_EmissionColor",new Color(1,.4f,.08f)*Mathf.Lerp(.15f,2.5f,darkness)); }
         public void Build(Transform section, Material grass, Material leaf, Material bark, Material stone, Material roof, Material red, Material trim)
         {
+            if(glow==null)
+            {
+                glow=new Material(trim); glow.SetColor("_BaseColor",new Color(1,.65f,.25f));
+                glow.EnableKeyword("_EMISSION"); glow.SetColor("_EmissionColor",new Color(.15f,.06f,.01f));
+            }
             var root = new GameObject("Layered forest and shrines").transform;
             root.SetParent(section,false);
             for(int side=-1;side<=1;side+=2)
@@ -60,7 +68,7 @@ namespace RollingPanda
             Shape(root,PrimitiveType.Sphere,new Vector3(x,1.6f,z+.6f),new Vector3(.45f,.65f,.45f),trim);
             foreach(float dx in new[]{-1.4f,1.4f})
             {
-                Shape(root,PrimitiveType.Cylinder,new Vector3(x+dx,3.1f,z-2),new Vector3(.35f,.38f,.35f),trim);
+                Shape(root,PrimitiveType.Cylinder,new Vector3(x+dx,3.1f,z-2),new Vector3(.35f,.38f,.35f),glow);
                 Shape(root,PrimitiveType.Cube,new Vector3(x+dx,3.55f,z-2),new Vector3(.06f,.25f,.06f),red);
             }
         }
@@ -69,7 +77,9 @@ namespace RollingPanda
             Shape(root,PrimitiveType.Cube,new Vector3(x,.2f,z),new Vector3(1.4f,.4f,1.4f),stone);
             Shape(root,PrimitiveType.Cube,new Vector3(x,1,z),new Vector3(.5f,1.3f,.5f),stone);
             Shape(root,PrimitiveType.Cube,new Vector3(x,1.85f,z),new Vector3(1,.6f,1),stone);
-            Shape(root,PrimitiveType.Cube,new Vector3(x,1.85f,z-.51f),new Vector3(.45f,.35f,.02f),trim);
+            Shape(root,PrimitiveType.Cube,new Vector3(x,1.85f,z-.51f),new Vector3(.45f,.35f,.02f),glow);
+            var socket=new GameObject("Shrine light socket").transform; socket.SetParent(root,false);
+            socket.localPosition=new Vector3(x,1.85f,z-.7f); LampSockets.Add(socket);
             Roof(root,x,2.2f,z,1.7f,1.7f,roof,trim);
         }
         void Roof(Transform root,float x,float y,float z,float width,float depth,Material roof,Material trim)
@@ -111,6 +121,7 @@ namespace RollingPanda
                 renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
             }
         }
-        void OnDestroy(){ foreach(var mesh in ownedMeshes) if(mesh!=null) Destroy(mesh); }
+        void OnDestroy(){ foreach(var mesh in ownedMeshes) if(mesh!=null) Destroy(mesh); if(glow!=null) Destroy(glow); }
     }
 }
+

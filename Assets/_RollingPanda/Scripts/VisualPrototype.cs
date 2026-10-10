@@ -82,6 +82,7 @@ namespace RollingPanda
             RenderSettings.ambientLight = new Color(.57f,.65f,.62f);
             Camera camera = Camera.main;
             if (camera != null) { camera.backgroundColor = RenderSettings.fogColor; camera.clearFlags = CameraClearFlags.SolidColor; }
+            gameObject.AddComponent<RunAtmosphere>().Initialize(runner,forest,leaves,bamboo);
         }
 
         Transform Limb(string name, Vector3 pivot, Vector3 scale, Material material)
@@ -177,5 +178,6 @@ namespace RollingPanda
         void OnDestroy() { foreach(var material in materials) if(material != null) Destroy(material); }
     }
 }
+
 
 

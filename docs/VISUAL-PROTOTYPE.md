@@ -64,3 +64,29 @@ arc, slide timing and collision capsules.
 Editor and iOS-symbol compilation passed. Play-mode checks pending: inspect the ball
 silhouette through a full jump, landing recovery, side-kick direction, purple-beam
 clearance and repeated slide-to-jump transitions.
+
+## Evolving forest light
+
+VisualPrototype now changes atmosphere with total run distance: warm daylight at the
+start, mist building from 800 to 1500 m, dusk from about 1800 m, and a blue moonlit
+shrine forest by 3400 m. Dawn returns between 4800 and 6000 m, then the six-kilometre
+lighting journey repeats smoothly. These are first-pass adjustable art timings, not
+new difficulty thresholds. Existing movement and collision rules are unchanged.
+
+Fog colour/distance, directional light, ambient fill and forest palette transition
+together. Night keeps blue ambient fill and directional light so obstacles stay readable.
+Shrine windows and pavilion lanterns become warmly emissive as darkness builds. Up to
+four nearby shadowless point lights illuminate the shrine surroundings; they fade with
+distance and follow pooled shrine sockets through section recycling and origin shifts.
+Current desktop/mobile URP assets both allow four additional lights per object. No bloom
+is required for the luminous material, and there is no mobile performance claim yet.
+
+Restart returns daylight; pause freezes distance and therefore the atmosphere. The
+unchanged EndlessPrototype remains available for comparison. The scenery geometry is
+currently shared between moods: this checkpoint is lighting/palette progression, not
+separate biome layouts. Future passes can introduce distinct forest/temple environments.
+
+Validation: editor and iOS-symbol compilation and existing gesture/endless checks passed.
+Play-mode review pending: run to 1500, 2400 and 3400 m; inspect warm shrine lighting,
+purple-beam/red-block visibility, reset to daylight, and scenery continuity after rebases.
+If running beyond 6000 m, check the dawn-to-daylight loop. Device profiling remains pending.
