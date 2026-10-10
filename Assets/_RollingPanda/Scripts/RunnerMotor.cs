@@ -24,7 +24,7 @@ namespace RollingPanda
         public GameSession Session { get; set; }
         public bool Endless { get; set; }
         public double DistanceTravelled { get; private set; }
-        public float CurrentSpeed => Endless ? EndlessRules.Speed(DistanceTravelled) : ForwardSpeed;
+        public float CurrentSpeed => Session==null ? (Endless ? EndlessRules.Speed(DistanceTravelled) : ForwardSpeed) : Session.AdjustSpeed(Endless ? EndlessRules.Speed(DistanceTravelled) : ForwardSpeed);
 
         public bool Paused => paused;
         public bool Finished => !Endless && transform.position.z >= FinishDistance;
@@ -68,7 +68,7 @@ namespace RollingPanda
             {
                 slideTime = 0f;
                 SetStanding(true);
-                verticalSpeed = Mathf.Sqrt(-2f * Gravity * JumpHeight);
+                verticalSpeed = Mathf.Sqrt(-2f * Gravity * (Session==null ? JumpHeight : Session.JumpHeight(JumpHeight)));
             }
             else if (commands.Slide && grounded && !Sliding)
             {

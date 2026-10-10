@@ -5,6 +5,7 @@ static class Program
     static void Check(bool ok,string name){if(!ok) throw new Exception(name);}
     static void Main()
     {
+        SpecialChecks.Run();
         var random=new Random(932);double previous=0;
         for(int i=0;i<100000;i++)
         {
@@ -37,3 +38,4 @@ static class Program
         Console.WriteLine("Magnet rules passed: 100,000 kilometre blocks/row exclusions/minimum gaps, paused and expired timer, all-lane range and swept collection.");
     }
 }
+

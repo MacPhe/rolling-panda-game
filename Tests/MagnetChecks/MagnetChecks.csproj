@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
-  <ItemGroup><Compile Include="../../Assets/_RollingPanda/Scripts/MagnetRules.cs" Link="MagnetRules.cs" /><Compile Include="../../Assets/_RollingPanda/Scripts/ShieldRules.cs" Link="ShieldRules.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../Assets/_RollingPanda/Scripts/MagnetRules.cs" Link="MagnetRules.cs" /><Compile Include="../../Assets/_RollingPanda/Scripts/ShieldRules.cs" Link="ShieldRules.cs" /><Compile Include="../../Assets/_RollingPanda/Scripts/SpecialRules.cs" Link="SpecialRules.cs" /><Compile Include="../../Assets/_RollingPanda/Scripts/PickupRules.cs" Link="PickupRules.cs" /><Compile Include="../../Assets/_RollingPanda/Scripts/EndlessRules.cs" Link="EndlessRules.cs" /></ItemGroup>
 </Project>
+

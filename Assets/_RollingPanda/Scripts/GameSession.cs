@@ -6,11 +6,14 @@ namespace RollingPanda
     public sealed class GameSession : MonoBehaviour
     {
         readonly List<BlueGem> gems = new List<BlueGem>();
-        struct PickupToast { public Vector2 Viewport;public float Age;public int Kind;public bool Active; }
+        struct PickupToast { public Vector2 Viewport;public float Age;public int Kind,Amount;public bool Active; }
         readonly PickupToast[] toasts=new PickupToast[32];
         int nextToast;
         RunnerMagnet magnet;
         RunnerShield shield;
+        RunnerSpecials specials;
+        public float AdjustSpeed(float baseline) => specials==null ? baseline : specials.AdjustSpeed(baseline);
+        public float JumpHeight(float baseline) => specials!=null && specials.BatteryRemaining>0 ? SpecialRules.ChargedJumpHeight : baseline;
         public bool ShieldActive => shield!=null && ShieldRules.Protects(shield.Remaining);
         GUIStyle toastStyle;
         RunnerMotor runner;
@@ -132,16 +135,22 @@ namespace RollingPanda
         {
             if(!IsRunning) return;
             pickups.Collect(kind);
+            PickupFeedback(kind,worldPosition,1);
+        }
+        public void CollectGold(Vector3 position) {if(!IsRunning) return;pickups.AddPouches(50);PickupFeedback(PickupKind.Pouch,position,50);}
+        void PickupFeedback(PickupKind kind,Vector3 worldPosition,int amount)
+        {
             var camera=Camera.main;
             if(camera!=null)
             {
                 Vector3 p=camera.WorldToViewportPoint(worldPosition);
-                if(p.z>0) {toasts[nextToast]=new PickupToast{Viewport=p,Kind=(int)kind,Active=true};nextToast=(nextToast+1)%toasts.Length;}
+                if(p.z>0) {toasts[nextToast]=new PickupToast{Viewport=p,Kind=(int)kind,Amount=amount,Active=true};nextToast=(nextToast+1)%toasts.Length;}
             }
         }
 
         void LateUpdate()
         {
+            if(specials==null && Track!=null) {specials=gameObject.AddComponent<RunnerSpecials>();specials.Initialize(runner,this);}
             if(shield==null && Track!=null) {shield=gameObject.AddComponent<RunnerShield>();shield.Initialize(runner,this);}
             if(magnet==null && Track!=null) {magnet=gameObject.AddComponent<RunnerMagnet>();magnet.Initialize(runner,this,gems);}
             if(IsRunning) for(int i=0;i<toasts.Length;i++) if(toasts[i].Active)
@@ -164,7 +173,7 @@ namespace RollingPanda
         public void ResetRun()
         {
             Defeated = false;
-            System.Array.Clear(toasts,0,toasts.Length);nextToast=0;if(shield!=null) shield.ResetPowerup();if(magnet!=null) magnet.ResetPowerup();
+            System.Array.Clear(toasts,0,toasts.Length);nextToast=0;if(specials!=null) specials.ResetPowerups();if(shield!=null) shield.ResetPowerup();if(magnet!=null) magnet.ResetPowerup();
             DefeatReason = null;
             pickups.Reset();
             distance = 0f;
@@ -225,6 +234,12 @@ namespace RollingPanda
                 GUI.Label(new Rect(18,57,205,25),"Magnet  "+Mathf.CeilToInt(magnet.Remaining)+"s",counterStyle);
             if(shield!=null && shield.Remaining>0)
                 GUI.Label(new Rect(18,magnet!=null && magnet.Remaining>0 ? 82 : 57,205,25),"Shield  "+Mathf.CeilToInt(shield.Remaining)+"s",counterStyle);
+            if(specials!=null)
+            {
+                float y=57+(magnet!=null && magnet.Remaining>0 ? 25 : 0)+(shield!=null && shield.Remaining>0 ? 25 : 0);
+                if(specials.SpeedRemaining>0) {GUI.Label(new Rect(18,y,240,25),(specials.SpeedKind==SpecialKind.Speed ? "Boost 50m/s  " : "Time 10m/s  ")+specials.SpeedRemaining.ToString("0.0")+"s",counterStyle);y+=25;}
+                if(specials.BatteryRemaining>0) GUI.Label(new Rect(18,y,240,25),"High jumps  "+Mathf.CeilToInt(specials.BatteryRemaining)+"s",counterStyle);
+            }
             DrawToasts(safe,scale);
             GUI.matrix=previous;
         }
@@ -240,7 +255,7 @@ namespace RollingPanda
                 Vector2 p=t.Age<.16f ? Vector2.Lerp(start,lift,t.Age/.16f) : Vector2.Lerp(lift,target,Mathf.SmoothStep(0,1,(t.Age-.16f)/.54f));
                 Color color=t.Kind==0 ? new Color(.35f,.85f,1) : t.Kind==1 ? new Color(1,.35f,.4f) : new Color(.4f,1,.5f);
                 color.a=1-Mathf.InverseLerp(.55f,.7f,t.Age);GUI.color=color;
-                GUI.Label(new Rect(p.x-15,p.y-10,30,20),"+1",toastStyle);
+                GUI.Label(new Rect(p.x-23,p.y-10,46,20),"+"+t.Amount,toastStyle);
             }
             GUI.color=before;
         }

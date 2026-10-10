@@ -5,5 +5,6 @@ namespace RollingPanda
     {
         public GameObject[] SummerTrees, AutumnTrees, SummerBushes, AutumnBushes, Logs, Stumps;
         public GameObject Petals, MenuTree, Magnet, Shield;
+        public GameObject[] Specials;
     }
 }

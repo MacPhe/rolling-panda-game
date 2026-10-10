@@ -15,9 +15,11 @@ namespace RollingPanda
             if(EditorApplication.isPlayingOrWillChangePlaymode) return;
             if(Load("Tree1_summer")==null) return;
             var art=AssetDatabase.LoadAssetAtPath<EnvironmentArt>(Folder+"/EnvironmentArt.asset");
-            if(art!=null && art.SummerTrees!=null && art.SummerTrees.Length==8 && art.Petals!=null && art.MenuTree!=null && art.Magnet!=null && art.Shield!=null) return;
+            if(art!=null && art.SummerTrees!=null && art.SummerTrees.Length==8 && art.Petals!=null && art.MenuTree!=null && art.Magnet!=null && art.Shield!=null && art.Specials!=null && art.Specials.Length==5 && art.Specials[0]!=null) return;
             if(!AssetDatabase.IsValidFolder(Folder)) System.IO.Directory.CreateDirectory(Folder);
             if(art==null){art=ScriptableObject.CreateInstance<EnvironmentArt>();AssetDatabase.CreateAsset(art,Folder+"/EnvironmentArt.asset");}
+            string[] specialNames={"SpeedChevBlue","Time","Bomb","GoldPile","Battery"};
+            art.Specials=new GameObject[5];for(int i=0;i<5;i++) art.Specials[i]=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BTM_Assets/BTM_Items_Gems/Prefabs/"+specialNames[i]+".prefab");
             art.Shield=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BTM_Assets/BTM_Items_Gems/Prefabs/Shield.prefab");
             art.Magnet=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/BTM_Assets/BTM_Items_Gems/Prefabs/Magnet.prefab");
             art.MenuTree=Load("Tree5_autumn");
