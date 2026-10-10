@@ -212,3 +212,13 @@ compounding. Applied to all prototype obstacle types/scenes for consistent movem
 Editor and iOS-symbol compilation and existing gameplay checks passed. Actual Unity
 physics review pending: change lanes just after rocks, confirm direct front hits still
 end a run, jump small rocks, slide under lanterns, and repeat after restart/recycling.
+
+## Compact HUD and imported Diamondo integration
+
+See HUD-AND-ASSET-REVIEW.md for setup, asset inventory, compatibility findings and tests.
+The HUD now uses Alagard locally, with gem icon counters left and score/metres right.
+Control hints and run-state copy are shown only in the pause/end panel. Diamondo replaces
+the pickup sphere artwork in VisualPrototype without changing trigger sizes/positions.
+Editor preparation bakes three matching icons and a runtime mesh reference from the
+user-imported model. Stop Play, allow import, then test; the Rolling Panda menu can
+refresh the art. Imported packs and font remain local project dependencies.

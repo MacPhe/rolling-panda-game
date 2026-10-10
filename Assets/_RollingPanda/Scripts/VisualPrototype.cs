@@ -83,6 +83,10 @@ namespace RollingPanda
             Camera camera = Camera.main;
             if (camera != null) { camera.backgroundColor = RenderSettings.fogColor; camera.clearFlags = CameraClearFlags.SolidColor; }
             gameObject.AddComponent<RunAtmosphere>().Initialize(runner,forest,leaves,bamboo);
+            var gemArt=Resources.Load<GameArt>("Presentation/GameArt");
+            if(gemArt!=null && gemArt.Diamond!=null)
+                foreach(var gem in GetComponentsInChildren<BlueGem>(true))
+                    gem.gameObject.AddComponent<PickupArt>().Initialize(gemArt.Diamond,runner.Session);
             Material rock=Mat(shader,new Color(.7f,.76f,.84f));
             Material wood=Mat(shader,new Color(.28f,.16f,.085f));
             Material jumpAccent=Mat(shader,new Color(1,.65f,.12f));
@@ -184,6 +188,7 @@ namespace RollingPanda
         void OnDestroy() { foreach(var material in materials) if(material != null) Destroy(material); }
     }
 }
+
 
 
 

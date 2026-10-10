@@ -8,6 +8,10 @@ namespace RollingPanda
         readonly List<BlueGem> gems = new List<BlueGem>();
         RunnerMotor runner;
         double distance;
+        GameArt hudArt;
+        Font hudFont;
+        GUIStyle counterStyle, metricStyle, panelStyle, buttonStyle;
+        public bool IsRunning => runner!=null && !runner.Paused && !runner.Finished && !Defeated;
         public EndlessTrack Track { get; set; }
 #if UNITY_EDITOR || UNITY_STANDALONE
         bool previewSafeArea;
@@ -21,6 +25,8 @@ namespace RollingPanda
         public void Initialize(RunnerMotor player)
         {
             runner = player; player.Session = this;
+            hudArt=Resources.Load<GameArt>("Presentation/GameArt");
+            hudFont=Resources.Load<Font>("Presentation/alagard");
             RunnerInput.BlocksPointer = BlocksPointer;
             RunnerInput.TouchButtonAt = TouchButtonAt;
         }
@@ -68,7 +74,7 @@ namespace RollingPanda
             if (!safe.Contains(screenPosition)) return true;
             float scale = UiScale(safe);
             float yFromTop = safe.yMax - screenPosition.y;
-            return yFromTop < 178f * scale || yFromTop > safe.height - 80f * scale;
+            return yFromTop < 70f * scale || yFromTop > safe.height - 80f * scale;
         }
         public void RegisterGem(BlueGem gem) { gems.Add(gem); gem.Initialize(this); }
         public void CollectGem(PickupKind kind) { if (!Defeated) pickups.Collect(kind); }
@@ -99,29 +105,63 @@ namespace RollingPanda
 
         void OnGUI()
         {
-            if (runner == null) return;
-            var previous = GUI.matrix;
-            Rect safe = SafeArea();
-            float scale = UiScale(safe);
-            if (scale <= 0f) return;
-            float width = safe.width / scale, height = safe.height / scale;
-            GUI.matrix = Matrix4x4.TRS(new Vector3(safe.x, Screen.height - safe.yMax, 0), Quaternion.identity, new Vector3(scale, scale, 1));
-            var label = new GUIStyle(GUI.skin.label) { fontSize = 16, wordWrap = true };
-            var button = new GUIStyle(GUI.skin.button) { fontSize = 18 };
-            GUI.Box(new Rect(8, 8, width - 16, 162), "Rolling Panda");
-            GUI.Label(new Rect(18, 34, width - 36, 26), $"Score {Score}     {(long)distance} m", label);
-            GUI.Label(new Rect(18, 62, width - 36, 43), $"Blue {pickups.Blue}   Red {pickups.Red}   Pouches {pickups.Pouches}", label);
-            GUI.Label(new Rect(18, 105, width - 36, 22), "Swipe: left/right lanes • up jump • down slide", label);
-            string state = Defeated ? "Run ended — " + DefeatReason : runner.Finished ? "Course complete!" : runner.Paused ? "Paused — P to resume" : runner.Endless ? $"Endless run — speed {runner.CurrentSpeed:0.0} m/s" : "Running — each gem adds 10 points";
-            GUI.Label(new Rect(18, 130, width - 36, 38), state, label);
-            GUI.Box(new Rect(8, height - 76, width - 16, 68), "");
-            bool restartClicked = GUI.Button(new Rect(16, height - 68, (width - 40) / 2, 52), "Restart", button);
-            bool pauseClicked = GUI.Button(new Rect(24 + (width - 40) / 2, height - 68, (width - 40) / 2, 52), runner.Paused ? "Resume" : "Pause", button);
+            if(runner==null) return;
+            Rect safe=SafeArea();float scale=UiScale(safe);if(scale<=0) return;
+            if(counterStyle==null)
+            {
+                counterStyle=new GUIStyle(GUI.skin.label){font=hudFont,fontSize=18,alignment=TextAnchor.MiddleLeft,wordWrap=false};
+                metricStyle=new GUIStyle(counterStyle){fontSize=18,alignment=TextAnchor.MiddleRight};
+                panelStyle=new GUIStyle(counterStyle){fontSize=19,alignment=TextAnchor.MiddleCenter,wordWrap=true};
+                buttonStyle=new GUIStyle(GUI.skin.button){font=hudFont,fontSize=22};
+            }
+            Matrix4x4 previous=GUI.matrix;
+            float width=safe.width/scale,height=safe.height/scale;
+            GUI.matrix=Matrix4x4.TRS(new Vector3(safe.x,Screen.height-safe.yMax,0),Quaternion.identity,new Vector3(scale,scale,1));
+            GUI.Box(new Rect(10,10,204,44),"");
+            DrawCounter(18,pickups.Blue,0);DrawCounter(82,pickups.Red,1);DrawCounter(146,pickups.Pouches,2);
+            bool wide=width>=600;
+            float metricsWidth=wide ? 240 : 150;
+            float right=width-12;
+            GUI.Box(new Rect(right-metricsWidth,10,metricsWidth,wide ? 44 : 56),"");
+            if(wide)
+            {
+                GUI.Label(new Rect(right-230,15,130,32),$"Score {Score}",metricStyle);
+                GUI.Label(new Rect(right-94,15,84,32),$"{(long)distance} m",metricStyle);
+            }
+            else
+            {
+                GUI.Label(new Rect(right-144,10,136,28),$"Score {Score}",metricStyle);
+                GUI.Label(new Rect(right-144,34,136,28),$"{(long)distance} m",metricStyle);
+            }
+            if(Defeated || runner.Paused || runner.Finished)
+            {
+                float panelWidth=Mathf.Min(430,width-32),left=(width-panelWidth)/2,top=Mathf.Max(82,height*.31f);
+                GUI.Box(new Rect(left,top,panelWidth,128),"");
+                string state=Defeated ? "Run ended" : runner.Finished ? "Course complete!" : "Paused";
+                GUI.Label(new Rect(left+12,top+10,panelWidth-24,30),state,panelStyle);
+                GUI.Label(new Rect(left+12,top+44,panelWidth-24,38),Defeated ? DefeatReason : "Swipe left/right: lanes   Up: jump   Down: slide",panelStyle);
+                GUI.Label(new Rect(left+12,top+86,panelWidth-24,30),"Restart for a new run",panelStyle);
+            }
+            bool restartClicked=GUI.Button(new Rect(16,height-68,(width-40)/2,52),"Restart",buttonStyle);
+            bool pauseClicked=GUI.Button(new Rect(24+(width-40)/2,height-68,(width-40)/2,52),runner.Paused ? "Resume" : "Pause",buttonStyle);
 #if UNITY_EDITOR || UNITY_STANDALONE
-            if (restartClicked) runner.Restart();
-            if (pauseClicked) runner.TogglePause();
+            if(restartClicked) runner.Restart();
+            if(pauseClicked) runner.TogglePause();
 #endif
-            GUI.matrix = previous;
+            GUI.matrix=previous;
+        }
+        void DrawCounter(float x,int count,int kind)
+        {
+            Texture2D icon=hudArt==null ? null : hudArt.Icon(kind);
+            if(icon!=null) GUI.DrawTexture(new Rect(x,16,28,32),icon,ScaleMode.ScaleToFit,true);
+            else
+            {
+                Color previous=GUI.color;GUI.color=kind==0 ? Color.cyan : kind==1 ? Color.red : Color.green;
+                GUI.Label(new Rect(x,17,28,30),"*",counterStyle);GUI.color=previous;
+            }
+            string display=count>=10000 ? (count/1000f).ToString("0.#")+"k" : count.ToString();
+            GUI.Label(new Rect(x+29,16,35,32),new GUIContent(display,count.ToString()),counterStyle);
         }
     }
 }
+
