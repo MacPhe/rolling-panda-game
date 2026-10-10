@@ -8,6 +8,8 @@ namespace RollingPanda
     {
         RunnerMotor runner;
         Material groundMaterial, lineMaterial, playerMaterial, bandMaterial;
+        [SerializeField] bool enableGameLoop = false;
+        Material hurdleMaterial, beamMaterial, gemMaterial;
 
         void Awake()
         {
@@ -48,6 +50,7 @@ namespace RollingPanda
             band.transform.localScale = new Vector3(1.03f, 0.13f, 1.03f);
             runner = player.AddComponent<RunnerMotor>();
             runner.Initialize(body.transform);
+            if (enableGameLoop) BuildCourse(shader);
 
             Camera camera = Camera.main;
             if (camera == null)
@@ -68,6 +71,44 @@ namespace RollingPanda
             material.SetColor("_BaseColor", color);
             material.SetFloat("_Smoothness", 0.15f);
             return material;
+        }
+
+        void BuildCourse(Shader shader)
+        {
+            var session = gameObject.AddComponent<GameSession>();
+            session.Initialize(runner);
+            hurdleMaterial = MakeMaterial(shader, new Color(1f, 0.65f, 0.12f));
+            beamMaterial = MakeMaterial(shader, new Color(0.6f, 0.22f, 0.85f));
+            gemMaterial = MakeMaterial(shader, new Color(0.05f, 0.55f, 1f));
+            // Each row blocks one lane only. Adjacent lanes always offer a safe route.
+            for (int row = 0; row < 24; row++)
+            {
+                float z = 40f + row * 36f;
+                int lane = (row / 3) % 3 - 1;
+                int kind = row % 3;
+                float height = kind == 0 ? 4.5f : kind == 1 ? 0.85f : 1.5f;
+                float y = kind == 2 ? 1.15f + height * 0.5f : height * 0.5f;
+                var material = kind == 0 ? bandMaterial : kind == 1 ? hurdleMaterial : beamMaterial;
+                var obstacle = MakeCube(kind == 0 ? "Dodge block" : kind == 1 ? "Jump hurdle" : "Slide beam",
+                    new Vector3(lane * RunnerMotor.LaneSpacing, y, z), new Vector3(2.2f, height, 1.2f), material, true);
+                obstacle.AddComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Slide under purple beams";
+                int safeLane = lane == 1 ? 0 : lane + 1;
+                foreach (float offset in new[] { -12f, -8f, -4f, 4f, 8f })
+                {
+                    var gem = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    gem.name = "Blue gem";
+                    gem.transform.SetParent(transform);
+                    gem.transform.position = new Vector3(safeLane * RunnerMotor.LaneSpacing, 1f, z + offset);
+                    gem.transform.localScale = Vector3.one * 0.65f;
+                    gem.GetComponent<Renderer>().sharedMaterial = gemMaterial;
+                    gem.GetComponent<SphereCollider>().isTrigger = true;
+                    var rigidbody = gem.AddComponent<Rigidbody>();
+                    rigidbody.isKinematic = true;
+                    rigidbody.useGravity = false;
+                    session.RegisterGem(gem.AddComponent<BlueGem>());
+                }
+            }
+            Physics.SyncTransforms();
         }
 
         GameObject MakeCube(string objectName, Vector3 position, Vector3 scale, Material material, bool collidable)
@@ -91,7 +132,7 @@ namespace RollingPanda
 
         void OnGUI()
         {
-            if (runner == null) return;
+            if (runner == null || enableGameLoop) return;
             // Scale the keyboard test overlay to remain readable in small Game views.
             Matrix4x4 previousMatrix = GUI.matrix;
             float scale = Mathf.Clamp(Screen.width / 1000f, 0.65f, 1.5f);
@@ -110,6 +151,9 @@ namespace RollingPanda
             if (lineMaterial != null) Destroy(lineMaterial);
             if (playerMaterial != null) Destroy(playerMaterial);
             if (bandMaterial != null) Destroy(bandMaterial);
+            if (hurdleMaterial != null) Destroy(hurdleMaterial);
+            if (beamMaterial != null) Destroy(beamMaterial);
+            if (gemMaterial != null) Destroy(gemMaterial);
         }
     }
 }

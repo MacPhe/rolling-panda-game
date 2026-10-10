@@ -18,6 +18,7 @@ namespace RollingPanda
         float verticalSpeed, slideTime;
         int lane;
         bool paused;
+        public GameSession Session { get; set; }
 
         public bool Paused => paused;
         public bool Finished => transform.position.z >= FinishDistance;
@@ -37,7 +38,7 @@ namespace RollingPanda
             var commands = RunnerInput.Read();
             if (commands.Restart) { Restart(); return; }
             if (commands.TogglePause) paused = !paused;
-            if (paused || Finished) return;
+            if (paused || Finished || (Session != null && Session.Defeated)) return;
 
             float dt = Time.deltaTime;
             lane = Mathf.Clamp(lane + commands.LaneStep, -1, 1);
@@ -67,6 +68,21 @@ namespace RollingPanda
             float forward = Mathf.Min(ForwardSpeed * dt, FinishDistance - transform.position.z);
             var flags = controller.Move(new Vector3(targetX - transform.position.x, verticalSpeed * dt, forward));
             if ((flags & CollisionFlags.Above) != 0 && verticalSpeed > 0f) verticalSpeed = 0f;
+            if (Session != null && !Session.Defeated)
+            {
+                // Also catch standing up inside a beam when a timed slide expires.
+                Vector3 center = transform.position + controller.center;
+                float halfSegment = controller.height * 0.5f - controller.radius;
+                foreach (var hit in Physics.OverlapCapsule(center + Vector3.up * halfSegment,
+                    center - Vector3.up * halfSegment, controller.radius, ~0, QueryTriggerInteraction.Ignore))
+                    if (hit.TryGetComponent<RunnerObstacle>(out var obstacle)) Session.Fail(obstacle.Instruction);
+            }
+        }
+
+        void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            if (Session != null && hit.collider.TryGetComponent<RunnerObstacle>(out var obstacle))
+                Session.Fail(obstacle.Instruction);
         }
 
         void SetStanding(bool standing)
@@ -89,6 +105,7 @@ namespace RollingPanda
             slideTime = 0f;
             paused = false;
             SetStanding(true);
+            if (Session != null) Session.ResetRun();
         }
     }
 }
