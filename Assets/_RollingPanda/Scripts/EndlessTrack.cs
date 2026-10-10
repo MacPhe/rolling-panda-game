@@ -125,7 +125,7 @@ namespace RollingPanda
                     if (count == 0) gem.gameObject.SetActive(false);
                 }
                 var intermediate = section.Intermediates[row];
-                int intermediateKind = EndlessRules.Pattern(index, row) % 3;
+                int intermediateKind = EndlessRules.IntermediateKind(index, row);
                 float intermediateHeight = intermediateKind == 0 ? 4.5f : intermediateKind == 1 ? 0.85f : 1.5f;
                 intermediate.transform.localPosition = new Vector3(EndlessRules.IntermediateLane(index, row) * RunnerMotor.LaneSpacing,
                     intermediateKind == 2 ? 1.35f + intermediateHeight / 2 : intermediateHeight / 2, 48 + row * 48);
@@ -177,3 +177,4 @@ namespace RollingPanda
         }
     }
 }
+

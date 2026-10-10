@@ -174,3 +174,24 @@ Editor and iOS-symbol compilation passed. Play-mode review pending: lantern warm
 daylight/night, slide readability and clearance, forest fullness in portrait/landscape,
 foliage clipping/occlusion, and scenery recycling beyond 960 m. The previous gameplay
 comparison scene remains unchanged.
+
+## Staged obstacle introduction and faster pacing
+
+Current rules supersede the earlier pacing notes above. First 300 m: single small-rock
+jump rows. From 300 m: two-obstacle primary rows, still small rocks only until 800 m.
+Extra single rows continue after 600 m. Lanterns become eligible at 800 m, then large
+dodge rocks at 1500 m. Eligibility uses each row's absolute distance, including extra
+single rows, not when its pooled section was created. The first lantern opportunity is
+816 m on the extra-row grid; first large-rock opportunity is 1512 m. Before 1500 m,
+small rocks and lanterns continue in the mix. After 1500 m all three types are available.
+
+Speed begins at 17.5 m/s and increases by 1 m/s per 150 m to a 40 m/s cap at 3375 m.
+At the cap, 24 m between primary/extra rows gives 0.6 seconds. Clear-lane route rules
+are preserved; advanced two-obstacle rows contain different types after 800 m.
+Risk gem trails and pouch placement use the same new type selection rules.
+
+Both endless scenes use these updated shared gameplay rules. Fixed movement/course
+scenes are unchanged. Editor and iOS-symbol compilation passed; expanded checks cover
+unlock boundaries, primary and extra rows, opening row counts, advanced type diversity,
+speed endpoints/monotonicity, route margins, pickups and the 100 km pool simulation.
+Actual high-speed reaction feel and jump/slide recovery still require Play-mode review.
