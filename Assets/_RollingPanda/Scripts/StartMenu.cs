@@ -47,9 +47,12 @@ namespace RollingPanda
         {
             Layout();
             if (!loading) sleeper.localScale = new Vector3(1, 1 + Mathf.Sin(Time.unscaledTime * 1.5f) * .018f, 1);
+            if (!loading)
+            {
             view.orthographicSize = Screen.width > Screen.height ? 5.4f : 8.2f;
             view.transform.position = Screen.width > Screen.height ? new Vector3(7, 5.8f, -13) : new Vector3(5, 7.5f, -14);
             view.transform.LookAt(Screen.width > Screen.height ? new Vector3(2.4f, 3, 0) : new Vector3(0, 1.5f, 0));
+            }
 #if !UNITY_EDITOR && !UNITY_STANDALONE
             var touch = Touchscreen.current;
             if (touch == null || loading) return;
@@ -92,12 +95,16 @@ namespace RollingPanda
         }
         IEnumerator RollIntoRun()
         {
-            // Preload while the deterministic animation runs; activate only under black.
+            // Preload while the deterministic animation runs; activate under the matched menu image.
             var overlay = new GameObject("Roll into run transition").AddComponent<RunEntryTransition>();
             var operation = SceneManager.LoadSceneAsync("VisualPrototype");
             operation.allowSceneActivation = false;
             Vector3 start = sleeper.localPosition;
             Quaternion rotation = sleeper.localRotation;
+            Quaternion upright = Quaternion.Euler(0,0,-90); // Head (-X) becomes up; face remains toward -Z.
+            Vector3 cameraStart = view.transform.position;
+            Quaternion cameraRotation = view.transform.rotation;
+            Matrix4x4 menuProjection = view.projectionMatrix;
             var parts = new List<Transform>();
             var poses = new List<Vector3>();
             foreach (Transform child in sleeper) { parts.Add(child); poses.Add(child.localPosition); }
@@ -118,12 +125,12 @@ namespace RollingPanda
                 else if(elapsed < 1.3f)
                 {
                     sleeper.localPosition=new Vector3(Mathf.Lerp(start.x,landing.x,fall),Mathf.Lerp(start.y,landing.y,fall*fall),Mathf.Lerp(start.z,landing.z,fall));
-                    sleeper.localRotation=rotation*Quaternion.Euler(150*fall,0,-18*(1-fall));
+                    sleeper.localRotation=Quaternion.Slerp(rotation,upright,Mathf.SmoothStep(0,1,fall));
                 }
                 else
                 {
                     sleeper.localPosition=landing+new Vector3(0,Mathf.Abs(Mathf.Sin(roll*Mathf.PI*3))*.12f,-4.5f*roll);
-                    sleeper.localRotation=rotation*Quaternion.Euler(150+720*roll,0,0);
+                    sleeper.localRotation=Quaternion.AngleAxis(-720*roll,Vector3.right)*upright;
                 }
                 sleeper.localScale=Vector3.Lerp(Vector3.one,new Vector3(.85f,1,.95f),tuck);
                 for(int i=0;i<parts.Count;i++)
@@ -134,10 +141,27 @@ namespace RollingPanda
                         target+=new Vector3(.18f,-.12f,0);
                     parts[i].localPosition=Vector3.Lerp(poses[i],target,tuck);
                 }
-                overlay.Opacity=Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-2.25f)/.45f));
+                // Orbit from the front to the chase side while travel stays toward -Z.
+                // The run uses +Z, but the same camera-relative forward direction.
+                float chase = Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-.65f)/1.75f));
+                Vector3 orbit = Quaternion.Euler(0,180*chase,0)*new Vector3(0,5,-8);
+                Vector3 feet = sleeper.localPosition-Vector3.up*.7f;
+                view.transform.position=Vector3.Lerp(cameraStart,feet+orbit,chase);
+                Vector3 aim=feet+new Vector3(0,1,Mathf.Lerp(0,-6,chase));
+                Quaternion look=Quaternion.LookRotation(aim-view.transform.position);
+                view.transform.rotation=Quaternion.Slerp(cameraRotation,look,chase);
+                if(elapsed>.65f)
+                {
+                    view.orthographic=false; view.fieldOfView=60;
+                    Matrix4x4 perspective=Matrix4x4.Perspective(60,view.aspect,view.nearClipPlane,view.farClipPlane);
+                    Matrix4x4 projection=menuProjection; for(int cell=0;cell<16;cell++) projection[cell]=Mathf.Lerp(menuProjection[cell],perspective[cell],chase); view.projectionMatrix=projection;
+                }
                 yield return null;
             }
-            overlay.Opacity=1;
+            // Hold this matched chase view while loading; dissolve worlds instead of blacking out.
+            view.ResetProjectionMatrix();
+            yield return new WaitForEndOfFrame();
+            overlay.Capture();
             overlay.Finish(operation);
         }
         void OnGUI()
@@ -261,4 +285,5 @@ namespace RollingPanda
         void OnDestroy(){foreach(var m in materials) Destroy(m);}
     }
 }
+
 

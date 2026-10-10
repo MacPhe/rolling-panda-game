@@ -130,12 +130,20 @@ namespace RollingPanda
             wasAirborne=airborne;
             float gait=Mathf.Sin(phase), counter=Mathf.Sin(phase+Mathf.PI);
             float blend=1-Mathf.Exp(-18*dt);
+            bool entry=RunEntryTransition.Revealing;
             float tuck=airborne ? Mathf.SmoothStep(0,1,Mathf.Clamp01(airTime/.12f))*
                 (1-Mathf.SmoothStep(0,1,Mathf.Clamp01((airTime-.55f)/.17f))) : 0;
+            if(entry) tuck=Mathf.Sin(RunEntryTransition.RevealProgress*Mathf.PI);
             panda.localScale=new Vector3(1,1-.22f*tuck,1);
             Quaternion bodyRotation;
             Vector3 bodyPosition;
-            if(runner.Sliding)
+            if(entry)
+            {
+                bodyRotation=Quaternion.Euler(360*RunEntryTransition.RevealProgress,0,0);
+                Vector3 pivot=new Vector3(0,.9f,0);
+                bodyPosition=pivot-bodyRotation*Vector3.Scale(pivot,panda.localScale);
+            }
+            else if(runner.Sliding)
             {
                 // Low, feet-first martial-arts lunge; the tested sliding capsule is unchanged.
                 bodyRotation=Quaternion.Euler(-82,0,0)*Quaternion.Euler(0,75,0);
@@ -154,8 +162,8 @@ namespace RollingPanda
                 bodyRotation=Quaternion.Euler(7+Mathf.Sin(phase*2)*2,gait*3,gait*3);
                 bodyPosition=new Vector3(0,.025f+Mathf.Cos(phase*2)*.025f,0);
             }
-            panda.localRotation=airborne ? bodyRotation : Quaternion.Slerp(panda.localRotation,bodyRotation,blend);
-            panda.localPosition=airborne ? bodyPosition : Vector3.Lerp(panda.localPosition,bodyPosition,blend);
+            panda.localRotation=airborne || entry ? bodyRotation : Quaternion.Slerp(panda.localRotation,bodyRotation,blend);
+            panda.localPosition=airborne || entry ? bodyPosition : Vector3.Lerp(panda.localPosition,bodyPosition,blend);
             headRig.localPosition=Vector3.Lerp(headRig.localPosition,new Vector3(0,1.6f-.28f*tuck,.12f*tuck),blend);
             headRig.localRotation=Quaternion.Slerp(headRig.localRotation,Quaternion.Euler(32*tuck,0,0),blend);
             leftArm.localPosition=Vector3.Lerp(leftArm.localPosition,new Vector3(-.48f+.18f*tuck,1.15f-.12f*tuck,.15f*tuck),blend);
