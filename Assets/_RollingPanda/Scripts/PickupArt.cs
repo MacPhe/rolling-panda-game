@@ -11,8 +11,9 @@ namespace RollingPanda
         Material previousMaterial;
         Camera view;
         float clock,seed;
-        readonly MaterialPropertyBlock properties=new MaterialPropertyBlock();
-        static readonly int BaseColor=Shader.PropertyToID("_BaseColor");
+        MaterialPropertyBlock properties;
+        int BaseColor;
+        void Awake(){properties=new MaterialPropertyBlock();BaseColor=Shader.PropertyToID("_BaseColor");}
         public void Initialize(Mesh mesh,GameSession game,GemPresentation presentation)
         {
             source=GetComponent<Renderer>();session=game;palette=presentation;view=Camera.main;

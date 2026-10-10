@@ -6,6 +6,11 @@ namespace RollingPanda
     public sealed class GameSession : MonoBehaviour
     {
         readonly List<BlueGem> gems = new List<BlueGem>();
+        struct PickupToast { public Vector2 Viewport;public float Age;public int Kind;public bool Active; }
+        readonly PickupToast[] toasts=new PickupToast[32];
+        int nextToast;
+        RunnerMagnet magnet;
+        GUIStyle toastStyle;
         RunnerMotor runner;
         double distance;
         bool leaving;
@@ -30,6 +35,7 @@ namespace RollingPanda
         public void Initialize(RunnerMotor player)
         {
             runner = player; player.Session = this;
+
             hudArt=Resources.Load<GameArt>("Presentation/GameArt");
             hudFont=Resources.Load<Font>("Presentation/alagard");
             RunnerInput.BlocksPointer = BlocksPointer;
@@ -120,10 +126,23 @@ namespace RollingPanda
             return yFromTop < 70f * scale || yFromTop > safe.height - 80f * scale;
         }
         public void RegisterGem(BlueGem gem) { gems.Add(gem); gem.Initialize(this); }
-        public void CollectGem(PickupKind kind) { if (!Defeated) pickups.Collect(kind); }
+        public void CollectGem(PickupKind kind,Vector3 worldPosition)
+        {
+            if(!IsRunning) return;
+            pickups.Collect(kind);
+            var camera=Camera.main;
+            if(camera!=null)
+            {
+                Vector3 p=camera.WorldToViewportPoint(worldPosition);
+                if(p.z>0) {toasts[nextToast]=new PickupToast{Viewport=p,Kind=(int)kind,Active=true};nextToast=(nextToast+1)%toasts.Length;}
+            }
+        }
 
         void LateUpdate()
         {
+            if(magnet==null && Track!=null) {magnet=gameObject.AddComponent<RunnerMagnet>();magnet.Initialize(runner,this,gems);}
+            if(IsRunning) for(int i=0;i<toasts.Length;i++) if(toasts[i].Active)
+            {toasts[i].Age+=Time.deltaTime;if(toasts[i].Age>=.7f) toasts[i].Active=false;}
             if (runner != null && !runner.Paused)
                 distance = System.Math.Max(distance, runner.DistanceTravelled);
         }
@@ -140,6 +159,7 @@ namespace RollingPanda
         public void ResetRun()
         {
             Defeated = false;
+            System.Array.Clear(toasts,0,toasts.Length);nextToast=0;if(magnet!=null) magnet.ResetPowerup();
             DefeatReason = null;
             pickups.Reset();
             distance = 0f;
@@ -156,6 +176,7 @@ namespace RollingPanda
                 counterStyle=new GUIStyle(GUI.skin.label){font=hudFont,fontSize=18,alignment=TextAnchor.MiddleLeft,wordWrap=false};
                 metricStyle=new GUIStyle(counterStyle){fontSize=18,alignment=TextAnchor.MiddleRight};
                 panelStyle=new GUIStyle(counterStyle){fontSize=19,alignment=TextAnchor.MiddleCenter,wordWrap=true};
+                toastStyle=new GUIStyle(counterStyle){fontSize=14,alignment=TextAnchor.MiddleCenter};
                 buttonStyle=new GUIStyle(GUI.skin.button){font=hudFont,fontSize=22};
             }
             Matrix4x4 previous=GUI.matrix;
@@ -195,7 +216,26 @@ namespace RollingPanda
             if(restartClicked) runner.Restart();
             if(pauseClicked) runner.TogglePause();
 #endif
+            if(magnet!=null && magnet.Remaining>0)
+                GUI.Label(new Rect(18,57,205,25),"Magnet  "+Mathf.CeilToInt(magnet.Remaining)+"s",counterStyle);
+            DrawToasts(safe,scale);
             GUI.matrix=previous;
+        }
+        void DrawToasts(Rect safe,float scale)
+        {
+            Color before=GUI.color;
+            for(int i=0;i<toasts.Length;i++)
+            {
+                var t=toasts[i];if(!t.Active) continue;
+                Vector2 start=new Vector2((t.Viewport.x*Screen.width-safe.x)/scale,(safe.yMax-t.Viewport.y*Screen.height)/scale);
+                Vector2 lift=start+Vector2.up*22;
+                Vector2 target=new Vector2(t.Kind==0 ? 32 : t.Kind==1 ? 96 : 160,32);
+                Vector2 p=t.Age<.16f ? Vector2.Lerp(start,lift,t.Age/.16f) : Vector2.Lerp(lift,target,Mathf.SmoothStep(0,1,(t.Age-.16f)/.54f));
+                Color color=t.Kind==0 ? new Color(.35f,.85f,1) : t.Kind==1 ? new Color(1,.35f,.4f) : new Color(.4f,1,.5f);
+                color.a=1-Mathf.InverseLerp(.55f,.7f,t.Age);GUI.color=color;
+                GUI.Label(new Rect(p.x-15,p.y-10,30,20),"+1",toastStyle);
+            }
+            GUI.color=before;
         }
         void DrawCounter(float x,int count,int kind)
         {
