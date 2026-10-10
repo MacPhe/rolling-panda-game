@@ -51,3 +51,16 @@ Run past 960 m to check scenery recycling. Check obstacle visibility in portrait
 landscape and look for visual clipping on slide transitions. Existing EndlessPrototype
 remains the gameplay comparison scene. Desktop/editor and iOS-symbol compilation passed;
 existing gesture/endless checks passed. Visual review and device profiling are pending.
+
+## Tucked flip and side-kick refinement
+
+The front flip now draws both arms and legs toward the body, curls the head forward,
+and slightly compresses the visual silhouette into a panda ball. It tucks during the
+middle of the flip and unfolds before landing. Rotation remains around the body centre.
+The slide now rolls the torso onto its side, extends one leg forward along the track,
+and folds the other leg back. These remain visual-only changes with unchanged jump
+arc, slide timing and collision capsules.
+
+Editor and iOS-symbol compilation passed. Play-mode checks pending: inspect the ball
+silhouette through a full jump, landing recovery, side-kick direction, purple-beam
+clearance and repeated slide-to-jump transitions.

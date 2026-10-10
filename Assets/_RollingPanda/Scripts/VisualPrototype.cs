@@ -8,7 +8,7 @@ namespace RollingPanda
     {
         readonly List<Material> materials = new List<Material>();
         RunnerMotor runner;
-        Transform panda, leftArm, rightArm, leftFoot, rightFoot, tails;
+        Transform panda, headRig, leftArm, rightArm, leftFoot, rightFoot, tails;
         float phase, airTime;
         bool wasAirborne;
         double previousDistance;
@@ -57,6 +57,21 @@ namespace RollingPanda
             leftFoot = Limb("Left leg",new Vector3(-.23f,.49f,0),new Vector3(.3f,.48f,.35f),ink);
             rightFoot = Limb("Right leg",new Vector3(.23f,.49f,0),new Vector3(.3f,.48f,.35f),ink);
             Part(panda,"Tail",PrimitiveType.Sphere,new Vector3(0,.66f,-.34f),Vector3.one*.22f,ivory);
+            // Group the face, ears and headband so the head can curl into the tuck.
+            headRig = new GameObject("Head tuck pivot").transform;
+            headRig.SetParent(panda,false);
+            headRig.localPosition = new Vector3(0,1.6f,0);
+            var headParts = new List<Transform>();
+            foreach (Transform part in panda)
+                if (part.name == "Head" || part.name == "Round ear" || part.name == "Eye patch" ||
+                    part.name == "Eye" || part.name == "Pupil" || part.name == "Muzzle" ||
+                    part.name == "Nose" || part.name == "Red headband" || part == tails) headParts.Add(part);
+            foreach (Transform part in headParts)
+            {
+                Vector3 position = part.localPosition;
+                part.SetParent(headRig,false);
+                part.localPosition = position - new Vector3(0,1.6f,0);
+            }
             foreach (Transform child in transform)
                 if (child.name.StartsWith("Track section ")) Decorate(child);
             RenderSettings.fog = true;
@@ -102,13 +117,16 @@ namespace RollingPanda
             wasAirborne=airborne;
             float gait=Mathf.Sin(phase), counter=Mathf.Sin(phase+Mathf.PI);
             float blend=1-Mathf.Exp(-18*dt);
+            float tuck=airborne ? Mathf.SmoothStep(0,1,Mathf.Clamp01(airTime/.12f))*
+                (1-Mathf.SmoothStep(0,1,Mathf.Clamp01((airTime-.55f)/.17f))) : 0;
+            panda.localScale=new Vector3(1,1-.22f*tuck,1);
             Quaternion bodyRotation;
             Vector3 bodyPosition;
             if(runner.Sliding)
             {
                 // Low, feet-first martial-arts lunge; the tested sliding capsule is unchanged.
-                bodyRotation=Quaternion.Euler(-68,0,-8);
-                bodyPosition=new Vector3(0,.12f,.3f);
+                bodyRotation=Quaternion.Euler(-82,0,0)*Quaternion.Euler(0,75,0);
+                bodyPosition=new Vector3(0,.55f,.6f);
             }
             else if(airborne)
             {
@@ -116,7 +134,7 @@ namespace RollingPanda
                 float turn=360*t*t*(3-2*t);
                 bodyRotation=Quaternion.Euler(turn,0,0);
                 Vector3 pivot=new Vector3(0,1,0);
-                bodyPosition=pivot-bodyRotation*pivot;
+                bodyPosition=pivot-bodyRotation*Vector3.Scale(pivot,panda.localScale);
             }
             else
             {
@@ -125,10 +143,17 @@ namespace RollingPanda
             }
             panda.localRotation=airborne ? bodyRotation : Quaternion.Slerp(panda.localRotation,bodyRotation,blend);
             panda.localPosition=airborne ? bodyPosition : Vector3.Lerp(panda.localPosition,bodyPosition,blend);
-            Pose(leftArm,runner.Sliding ? 45 : airborne ? -100 : gait*38,0,-12,blend);
-            Pose(rightArm,runner.Sliding ? -35 : airborne ? -100 : counter*38,0,12,blend);
-            Pose(leftFoot,runner.Sliding ? -110 : airborne ? -70 : counter*36,0,-3,blend);
-            Pose(rightFoot,runner.Sliding ? -20 : airborne ? -65 : gait*36,0,3,blend);
+            headRig.localPosition=Vector3.Lerp(headRig.localPosition,new Vector3(0,1.6f-.28f*tuck,.12f*tuck),blend);
+            headRig.localRotation=Quaternion.Slerp(headRig.localRotation,Quaternion.Euler(32*tuck,0,0),blend);
+            leftArm.localPosition=Vector3.Lerp(leftArm.localPosition,new Vector3(-.48f+.18f*tuck,1.15f-.12f*tuck,.15f*tuck),blend);
+            rightArm.localPosition=Vector3.Lerp(rightArm.localPosition,new Vector3(.48f-.18f*tuck,1.15f-.12f*tuck,.15f*tuck),blend);
+            leftFoot.localPosition=Vector3.Lerp(leftFoot.localPosition,new Vector3(-.23f,.49f+.25f*tuck,.18f*tuck),blend);
+            rightFoot.localPosition=Vector3.Lerp(rightFoot.localPosition,new Vector3(.23f,.49f+.25f*tuck,.18f*tuck),blend);
+            Pose(leftArm,runner.Sliding ? -65 : Mathf.Lerp(gait*38,-145,tuck),0,runner.Sliding ? -20 : -12,blend);
+            Pose(rightArm,runner.Sliding ? -105 : Mathf.Lerp(counter*38,-145,tuck),0,runner.Sliding ? 30 : 12,blend);
+            // One leg extends along travel; the other folds back for a side-kick silhouette.
+            Pose(leftFoot,runner.Sliding ? 0 : Mathf.Lerp(counter*36,-150,tuck),0,-3,blend);
+            Pose(rightFoot,runner.Sliding ? -105 : Mathf.Lerp(gait*36,-150,tuck),0,3,blend);
             tails.localRotation=Quaternion.Euler(Mathf.Sin(phase-.5f)*16,Mathf.Sin(phase*.5f)*8,Mathf.Sin(phase*.7f)*12);
         }
 
@@ -152,4 +177,5 @@ namespace RollingPanda
         void OnDestroy() { foreach(var material in materials) if(material != null) Destroy(material); }
     }
 }
+
 
