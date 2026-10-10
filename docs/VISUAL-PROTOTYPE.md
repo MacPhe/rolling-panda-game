@@ -195,3 +195,20 @@ scenes are unchanged. Editor and iOS-symbol compilation passed; expanded checks 
 unlock boundaries, primary and extra rows, opening row counts, advanced type diversity,
 speed endpoints/monotonicity, route margins, pickups and the 100 km pool simulation.
 Actual high-speed reaction feel and jump/slide recovery still require Play-mode review.
+
+## Forgiving obstacle trailing edges
+
+Obstacle box collisions are now 90% of visual width and 60% of visual depth, offset
+toward the approaching face (-Z). The front edge stays at its original location; the
+trailing (+Z) edge is shortened by 0.48 m for the current 1.2 m-deep obstacles. Each
+side is inset by 0.11 m for 2.2 m-wide obstacles. Full vertical size and centre remain
+unchanged, preserving hurdle height and the 1.35 m lantern clearance.
+
+The same physical collider serves CharacterController hits, overlap checks and standing
+clearance checks, so this fix does not merely suppress game-over messages while leaving
+an invisible solid wall. Local settings follow pooled scale changes and resets without
+compounding. Applied to all prototype obstacle types/scenes for consistent movement.
+
+Editor and iOS-symbol compilation and existing gameplay checks passed. Actual Unity
+physics review pending: change lanes just after rocks, confirm direct front hits still
+end a run, jump small rocks, slide under lanterns, and repeat after restart/recycling.
