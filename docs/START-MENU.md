@@ -18,3 +18,8 @@ Check in Unity:
 5. In Game view, compare portrait and landscape. Keep all buttons inside the safe area.
 
 Validation performed: runtime desktop, iOS conditional code and editor tools compile against the installed Unity 6000.6.5f1 assemblies. Existing gesture/endless regression checks pass. This does not verify Play Mode visuals, an iOS build or physical iPhone touch/performance; those still require Unity/device testing.
+
+## Animated entrance
+Roll / Play now starts a roughly 2.7-second sequence: stir on the branch, tip/fall, tuck the paws and roll toward the camera. The menu disappears and repeated taps are ignored. VisualPrototype preloads during the sequence, activates under a full-screen fade, then reveals over 0.5 seconds. The transition survives the scene change and holds runner input/movement, scoring and pickup presentation until the reveal is finished. No global time-scale change is used.
+
+Manual checks: watch the fall/landing and tucked pose in both orientations; tap Play repeatedly; confirm the first visible run starts at zero distance and controls respond after the fade; return to the menu and repeat. A slower scene load should remain covered rather than expose a partial scene. The entrance uses the current procedural panda and is a first animation pass, not a final authored character animation.

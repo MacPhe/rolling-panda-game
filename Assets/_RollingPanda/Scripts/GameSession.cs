@@ -16,7 +16,7 @@ namespace RollingPanda
         GameArt hudArt;
         Font hudFont;
         GUIStyle counterStyle, metricStyle, panelStyle, buttonStyle;
-        public bool IsRunning => runner!=null && !runner.Paused && !runner.Finished && !Defeated;
+        public bool IsRunning => !RunEntryTransition.Active && runner!=null && !runner.Paused && !runner.Finished && !Defeated;
         public EndlessTrack Track { get; set; }
 #if UNITY_EDITOR || UNITY_STANDALONE
         bool previewSafeArea;
@@ -149,7 +149,7 @@ namespace RollingPanda
 
         void OnGUI()
         {
-            if(runner==null) return;
+            if(runner==null || RunEntryTransition.Active) return;
             Rect safe=SafeArea();float scale=UiScale(safe);if(scale<=0) return;
             if(counterStyle==null)
             {

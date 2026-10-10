@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -45,7 +46,7 @@ namespace RollingPanda
         void Update()
         {
             Layout();
-            sleeper.localScale = new Vector3(1, 1 + Mathf.Sin(Time.unscaledTime * 1.5f) * .018f, 1);
+            if (!loading) sleeper.localScale = new Vector3(1, 1 + Mathf.Sin(Time.unscaledTime * 1.5f) * .018f, 1);
             view.orthographicSize = Screen.width > Screen.height ? 5.4f : 8.2f;
             view.transform.position = Screen.width > Screen.height ? new Vector3(7, 5.8f, -13) : new Vector3(5, 7.5f, -14);
             view.transform.LookAt(Screen.width > Screen.height ? new Vector3(2.4f, 3, 0) : new Vector3(0, 1.5f, 0));
@@ -77,7 +78,7 @@ namespace RollingPanda
                 if (i==0)
                 {
                     if (!Application.CanStreamedLevelBeLoaded("VisualPrototype")) { error="Add VisualPrototype to the Build Profile scene list."; return; }
-                    loading=true; SceneManager.LoadSceneAsync("VisualPrototype");
+                    loading=true; StartCoroutine(RollIntoRun());
                 }
                 else panel = i==1 ? "Settings" : i==2 ? "Leaderboards" : "Shop";
             }
@@ -89,8 +90,59 @@ namespace RollingPanda
             }
             else panel="";
         }
+        IEnumerator RollIntoRun()
+        {
+            // Preload while the deterministic animation runs; activate only under black.
+            var overlay = new GameObject("Roll into run transition").AddComponent<RunEntryTransition>();
+            var operation = SceneManager.LoadSceneAsync("VisualPrototype");
+            operation.allowSceneActivation = false;
+            Vector3 start = sleeper.localPosition;
+            Quaternion rotation = sleeper.localRotation;
+            var parts = new List<Transform>();
+            var poses = new List<Vector3>();
+            foreach (Transform child in sleeper) { parts.Add(child); poses.Add(child.localPosition); }
+            float elapsed = 0;
+            while (elapsed < 2.7f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float wake = Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/.45f));
+                float fall = Mathf.Clamp01((elapsed-.45f)/.85f);
+                float roll = Mathf.Clamp01((elapsed-1.3f)/1.4f);
+                float tuck = Mathf.SmoothStep(0,1,fall);
+                Vector3 landing = new Vector3(1.5f,.7f,-1.5f);
+                if(elapsed < .45f)
+                {
+                    sleeper.localPosition=start+Vector3.up*(Mathf.Sin(wake*Mathf.PI)*.12f);
+                    sleeper.localRotation=rotation*Quaternion.Euler(0,0,-18*wake);
+                }
+                else if(elapsed < 1.3f)
+                {
+                    sleeper.localPosition=new Vector3(Mathf.Lerp(start.x,landing.x,fall),Mathf.Lerp(start.y,landing.y,fall*fall),Mathf.Lerp(start.z,landing.z,fall));
+                    sleeper.localRotation=rotation*Quaternion.Euler(150*fall,0,-18*(1-fall));
+                }
+                else
+                {
+                    sleeper.localPosition=landing+new Vector3(0,Mathf.Abs(Mathf.Sin(roll*Mathf.PI*3))*.12f,-4.5f*roll);
+                    sleeper.localRotation=rotation*Quaternion.Euler(150+720*roll,0,0);
+                }
+                sleeper.localScale=Vector3.Lerp(Vector3.one,new Vector3(.85f,1,.95f),tuck);
+                for(int i=0;i<parts.Count;i++)
+                {
+                    Vector3 target=poses[i];
+                    if(parts[i].name=="Relaxed paw") target=new Vector3(target.x*.55f,-.1f,-.45f);
+                    if(parts[i].name=="Head" || parts[i].name=="Eye patch" || parts[i].name=="Closed eyelid" || parts[i].name=="Nose" || parts[i].name=="Ear" || parts[i].name.StartsWith("Red headband") || parts[i].name=="Headband ribbon")
+                        target+=new Vector3(.18f,-.12f,0);
+                    parts[i].localPosition=Vector3.Lerp(poses[i],target,tuck);
+                }
+                overlay.Opacity=Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-2.25f)/.45f));
+                yield return null;
+            }
+            overlay.Opacity=1;
+            overlay.Finish(operation);
+        }
         void OnGUI()
         {
+            if (loading) return;
             Layout();
             if(title==null)
             {
