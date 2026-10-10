@@ -15,11 +15,13 @@ A collision ends the run and freezes movement, score, and collection. Restart re
 3. Run into a red block: the run ends with guidance to dodge, and movement/score stop.
 4. Restart using both R and the button: score and gem count return to zero and all gems reappear.
 5. Jump over a gold hurdle, slide under a purple beam, and dodge to a free lane. Test both success and deliberate collision for each type.
-6. Let a slide expire beneath a beam: standing into the beam ends the run.
+6. Hold S/Down through a purple beam, then release: the player stays low until there is room to stand. A tapped slide lasts one second; if it expires beneath a beam, standing is delayed until clear. Jumping beneath a beam must not force the player upright.
 7. Restart while paused, jumping, sliding, and after defeat. Each time the player returns upright to the centre lane at the start.
 8. Complete the course, restart, stop Play, and re-enter Play. No duplicate tracks or players, and no Console errors.
 
 ## Validation status
+
+Purple-beam correction: beam undersides are now 1.35 metres above the track, compared with a 0.9-metre sliding capsule and a 2-metre upright capsule. Tapped slides last one second, holding S/Down sustains a slide, and a standing-clearance query delays standing or jumping into an overhead obstacle. Scripts compile after the change; the corrected interaction needs an in-editor retest. The user confirmed gem collection, hurdle jumping, red-block defeat, and R restart before this correction.
 
 The user verified the preceding movement checkpoint in Unity: controls behave correctly and the Console has no red errors. This checkpoint's seven scripts were compiled against installed Unity 6000.6.5f1 and Input System assemblies. The new scene enables the course while the movement scene retains its default movement-only behaviour. Interactive collisions, pickup callbacks, visual layout, and restart behaviour require the checks above; no phone or player build has been tested.
 

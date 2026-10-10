@@ -11,7 +11,9 @@ namespace RollingPanda
         const float LateralSpeed = 12f;
         const float Gravity = -25f;
         const float JumpHeight = 2.2f;
-        const float SlideDuration = 0.7f;
+        const float SlideDuration = 1f;
+        const float StandingHeight = 2f;
+        const float SlidingHeight = 0.9f;
         CharacterController controller;
         Transform visual;
         Vector3 startPosition;
@@ -48,10 +50,16 @@ namespace RollingPanda
             if (slideTime > 0f)
             {
                 slideTime = Mathf.Max(0f, slideTime - dt);
-                if (slideTime == 0f) SetStanding(true);
+                if (commands.SlideHeld) slideTime = Mathf.Max(slideTime, 0.1f);
+                if (slideTime == 0f)
+                {
+                    // Never expand the capsule into a beam just because the timer ended.
+                    if (CanStand()) SetStanding(true);
+                    else slideTime = 0.05f;
+                }
             }
 
-            if (commands.Jump && grounded)
+            if (commands.Jump && grounded && CanStand())
             {
                 slideTime = 0f;
                 SetStanding(true);
@@ -70,7 +78,7 @@ namespace RollingPanda
             if ((flags & CollisionFlags.Above) != 0 && verticalSpeed > 0f) verticalSpeed = 0f;
             if (Session != null && !Session.Defeated)
             {
-                // Also catch standing up inside a beam when a timed slide expires.
+                // Catch any obstacle overlapping the current capsule after movement.
                 Vector3 center = transform.position + controller.center;
                 float halfSegment = controller.height * 0.5f - controller.radius;
                 foreach (var hit in Physics.OverlapCapsule(center + Vector3.up * halfSegment,
@@ -85,9 +93,20 @@ namespace RollingPanda
                 Session.Fail(obstacle.Instruction);
         }
 
+        bool CanStand()
+        {
+            Vector3 center = transform.position + Vector3.up * (StandingHeight * 0.5f);
+            float halfSegment = StandingHeight * 0.5f - controller.radius;
+            foreach (var hit in Physics.OverlapCapsule(center + Vector3.up * halfSegment,
+                center - Vector3.up * halfSegment, controller.radius + controller.skinWidth,
+                ~0, QueryTriggerInteraction.Ignore))
+                if (hit.TryGetComponent<RunnerObstacle>(out _)) return false;
+            return true;
+        }
+
         void SetStanding(bool standing)
         {
-            float height = standing ? 2f : 0.9f;
+            float height = standing ? StandingHeight : SlidingHeight;
             controller.height = height;
             controller.center = Vector3.up * (height * 0.5f);
             if (visual == null) return;

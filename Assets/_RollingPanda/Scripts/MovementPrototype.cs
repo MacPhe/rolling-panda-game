@@ -87,7 +87,7 @@ namespace RollingPanda
                 int lane = (row / 3) % 3 - 1;
                 int kind = row % 3;
                 float height = kind == 0 ? 4.5f : kind == 1 ? 0.85f : 1.5f;
-                float y = kind == 2 ? 1.15f + height * 0.5f : height * 0.5f;
+                float y = kind == 2 ? 1.35f + height * 0.5f : height * 0.5f;
                 var material = kind == 0 ? bandMaterial : kind == 1 ? hurdleMaterial : beamMaterial;
                 var obstacle = MakeCube(kind == 0 ? "Dodge block" : kind == 1 ? "Jump hurdle" : "Slide beam",
                     new Vector3(lane * RunnerMotor.LaneSpacing, y, z), new Vector3(2.2f, height, 1.2f), material, true);
