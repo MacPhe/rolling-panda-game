@@ -8,11 +8,13 @@ namespace RollingPanda
     {
         readonly GameObject[] variants=new GameObject[3];
         readonly List<Mesh> meshes=new List<Mesh>();
-        Material paper;
+        Material paper, rockLight, rockDark;
         int current=-1;
         public void Initialize(Material stone,Material wood,Material red,Material gold,Material purple,Material moss)
         {
             GetComponent<Renderer>().enabled=false;
+            rockLight=new Material(stone); rockLight.SetColor("_BaseColor",new Color(.86f,.89f,.94f));
+            rockDark=new Material(stone); rockDark.SetColor("_BaseColor",new Color(.42f,.49f,.58f));
             paper=new Material(purple); paper.EnableKeyword("_EMISSION");
             paper.SetColor("_BaseColor",new Color(.62f,.27f,.72f));
             paper.SetColor("_EmissionColor",new Color(.38f,.12f,.5f));
@@ -47,29 +49,41 @@ namespace RollingPanda
         }
         void Rock(Transform parent,Material material,int variant)
         {
-            // Uneven crown and offset shoulders produce a faceted, asymmetric silhouette.
-            var vertices=new Vector3[12];
-            float[] heights={-.5f,.1f,.5f};
-            for(int ring=0;ring<3;ring++) for(int corner=0;corner<4;corner++)
+            // Eight uneven edges per ring break the old rectangular slab silhouette.
+            const int sides=8;
+            var vertices=new Vector3[24];
+            float[] radius={1,.86f,.52f};
+            for(int ring=0;ring<3;ring++) for(int edge=0;edge<sides;edge++)
             {
-                float x=corner==0 || corner==3 ? -.5f : .5f;
-                float z=corner<2 ? -.5f : .5f;
-                if(ring==2){x=x*(variant==0 ? .75f : .85f)-.05f;z*=.8f;}
-                vertices[ring*4+corner]=new Vector3(x,heights[ring]-(ring==2 && corner%2==1 ? .15f : 0),z);
+                float angle=edge*Mathf.PI/4;
+                float variation=1-((edge*3+ring*5+variant)%5)*.065f;
+                float x=Mathf.Cos(angle)*.5f*radius[ring]*variation;
+                float z=Mathf.Sin(angle)*.5f*radius[ring]*variation;
+                float y=ring==0 ? -.5f : ring==1 ? -.05f+(edge%3)*.085f : .5f-(edge%4)*.09f;
+                if(ring==2){x-=.13f;z+=.06f;}
+                vertices[ring*sides+edge]=new Vector3(x,y,z);
             }
-            var faces=new List<int>{0,2,1,0,3,2,8,9,10,8,10,11};
-            for(int ring=0;ring<2;ring++) for(int edge=0;edge<4;edge++)
+            var faces=new List<int>();
+            for(int ring=0;ring<2;ring++) for(int edge=0;edge<sides;edge++)
             {
-                int a=ring*4+edge,b=ring*4+(edge+1)%4,c=a+4,d=b+4;
-                faces.AddRange(new[]{a,b,c,b,d,c});
+                int a=ring*sides+edge,b=ring*sides+(edge+1)%sides,c=a+sides,d=b+sides;
+                faces.AddRange(new[]{a,c,b,b,c,d});
             }
-            // Duplicate triangle vertices for flat rock shading.
-            var flat=new Vector3[faces.Count];var indices=new int[faces.Count];
-            for(int i=0;i<faces.Count;i++){flat[i]=vertices[faces[i]];indices[i]=i;}
-            for(int i=0;i<indices.Length;i+=3){int swap=indices[i+1];indices[i+1]=indices[i+2];indices[i+2]=swap;}
-            var mesh=new Mesh();mesh.vertices=flat;mesh.triangles=indices;mesh.RecalculateNormals();mesh.RecalculateBounds();meshes.Add(mesh);
-            var go=new GameObject("Faceted stone");go.transform.SetParent(parent,false);
-            go.AddComponent<MeshFilter>().sharedMesh=mesh;go.AddComponent<MeshRenderer>().sharedMaterial=material;
+            for(int edge=1;edge<7;edge++){faces.AddRange(new[]{0,edge,edge+1,16,16+edge+1,16+edge});}
+            var flat=new Vector3[faces.Count];
+            var triangles=new[]{new List<int>(),new List<int>(),new List<int>()};
+            for(int i=0;i<faces.Count;i++) flat[i]=vertices[faces[i]];
+            for(int i=0;i<faces.Count;i+=3)
+            {
+                int shade=(i/3+variant)%5;
+                triangles[shade==0 ? 2 : shade<3 ? 0 : 1].AddRange(new[]{i,i+1,i+2});
+            }
+            var mesh=new Mesh();mesh.vertices=flat;mesh.subMeshCount=3;
+            for(int i=0;i<3;i++) mesh.SetTriangles(triangles[i],i);
+            mesh.RecalculateNormals();mesh.RecalculateBounds();meshes.Add(mesh);
+            var go=new GameObject("Broken cool-grey rock facets");go.transform.SetParent(parent,false);
+            go.AddComponent<MeshFilter>().sharedMesh=mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterials=new[]{material,rockLight,rockDark};
         }
         void OnEnable(){if(variants[0]!=null) Refresh();}
         void LateUpdate(){if(variants[0]!=null) Refresh();}
@@ -86,7 +100,8 @@ namespace RollingPanda
             var collider=go.GetComponent<Collider>();collider.enabled=false;Destroy(collider);
             go.GetComponent<Renderer>().sharedMaterial=material;
         }
-        void OnDestroy(){foreach(var mesh in meshes) if(mesh!=null) Destroy(mesh);if(paper!=null) Destroy(paper);}
+        void OnDestroy(){foreach(var mesh in meshes) if(mesh!=null) Destroy(mesh);if(paper!=null) Destroy(paper);if(rockLight!=null) Destroy(rockLight);if(rockDark!=null) Destroy(rockDark);}
     }
 }
+
 

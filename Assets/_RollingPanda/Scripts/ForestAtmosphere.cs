@@ -9,6 +9,7 @@ namespace RollingPanda
         readonly List<Mesh> ownedMeshes = new List<Mesh>();
         public readonly List<Transform> LampSockets = new List<Transform>();
         Material glow;
+        Mesh plantMesh;
         public void SetWarmth(float darkness) { if(glow!=null) glow.SetColor("_EmissionColor",new Color(1,.4f,.08f)*Mathf.Lerp(.15f,2.5f,darkness)); }
         public void Build(Transform section, Material grass, Material leaf, Material bark, Material stone, Material roof, Material red, Material trim)
         {
@@ -17,6 +18,7 @@ namespace RollingPanda
                 glow=new Material(trim); glow.SetColor("_BaseColor",new Color(1,.65f,.25f));
                 glow.EnableKeyword("_EMISSION"); glow.SetColor("_EmissionColor",new Color(.15f,.06f,.01f));
             }
+            if(plantMesh==null) plantMesh=CreatePlantMesh();
             var root = new GameObject("Layered forest and shrines").transform;
             root.SetParent(section,false);
             Cobbles(root,stone);
@@ -56,8 +58,7 @@ namespace RollingPanda
                     for(int bush=0;bush<4;bush++)
                     {
                         float x=side*(7.2f+bush*2.3f);
-                        var shrub=Shape(root,PrimitiveType.Sphere,new Vector3(x,.7f+bush*.18f,z+bush%2*2),new Vector3(2.6f,1.5f,2.4f),bush%2==0 ? leaf : grass);
-                        shrub.localRotation=Quaternion.Euler(0,cluster*29,12);
+                        Plant(root,new Vector3(x,.12f,z+bush%2*2),1+bush*.15f,cluster*29,bush%2==0 ? leaf : grass);
                         for(int blade=0;blade<4;blade++)
                         {
                             var spray=Shape(root,PrimitiveType.Cube,new Vector3(x,.65f,z+blade*.35f),new Vector3(.07f,1.2f,.28f),grass);
@@ -81,8 +82,7 @@ namespace RollingPanda
                         float fx=side*(6.4f+fern*.6f), fz=rz+fern*2;
                         for(int frond=0;frond<3;frond++)
                         {
-                            var leafShape=Shape(root,PrimitiveType.Sphere,new Vector3(fx,.38f,fz),new Vector3(.16f,.15f,1.3f),leaf);
-                            leafShape.localRotation=Quaternion.Euler(-22,frond*60+ridge*17,0);
+                            Plant(root,new Vector3(fx,.05f,fz),.6f,frond*60+ridge*17,leaf);
                         }
                         var rootShape=Shape(root,PrimitiveType.Cylinder,new Vector3(side*7,.15f,fz+1),new Vector3(.16f,.9f,.16f),bark);
                         rootShape.localRotation=Quaternion.Euler(90,side*35,0);
@@ -96,6 +96,40 @@ namespace RollingPanda
                 Shrine(root,side*7,78,stone,roof,trim);
             }
             Combine(root);
+        }
+        Mesh CreatePlantMesh()
+        {
+            var vertices=new List<Vector3>();var triangles=new List<int>();
+            for(int frond=0;frond<7;frond++) for(int pair=0;pair<4;pair++)
+            {
+                float angle=frond*Mathf.PI*2/7;
+                Vector3 direction=new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle));
+                Vector3 across=new Vector3(-direction.z,0,direction.x);
+                Vector3 centre=direction*(.15f+pair*.22f)+Vector3.up*(.25f+pair*.17f);
+                float side=pair%2==0 ? 1 : -1;
+                Vector3 tip=centre+direction*.35f+across*(side*.42f)+Vector3.up*.18f;
+                Vector3 mid=(centre+tip)*.5f;
+                int n=vertices.Count;
+                vertices.AddRange(new[]{centre,mid+direction*.11f,mid+Vector3.up*.065f,mid-direction*.11f,tip});
+                int[] face={0,1,2,0,2,3,1,4,2,2,4,3};
+                for(int i=0;i<face.Length;i+=3)
+                {
+                    triangles.AddRange(new[]{n+face[i],n+face[i+1],n+face[i+2],n+face[i+2],n+face[i+1],n+face[i]});
+                }
+            }
+            var flat=new Vector3[triangles.Count];var indices=new int[triangles.Count];
+            for(int i=0;i<triangles.Count;i++){flat[i]=vertices[triangles[i]];indices[i]=i;}
+            var mesh=new Mesh();mesh.vertices=flat;mesh.triangles=indices;
+            mesh.RecalculateNormals();mesh.RecalculateBounds();ownedMeshes.Add(mesh);return mesh;
+        }
+        void Plant(Transform parent,Vector3 position,float size,float angle,Material material)
+        {
+            var go=new GameObject("Pointed leaf vegetation");go.transform.SetParent(parent,false);
+            go.transform.localPosition=position;go.transform.localScale=Vector3.one*size;
+            go.transform.localRotation=Quaternion.Euler(0,angle,0);
+            go.AddComponent<MeshFilter>().sharedMesh=plantMesh;go.AddComponent<MeshRenderer>().sharedMaterial=material;
+            var stem=Shape(parent,PrimitiveType.Cube,position+Vector3.up*size*.5f,new Vector3(.045f,size,.045f),material);
+            stem.localRotation=Quaternion.Euler(8,angle,12);
         }
         void Cobbles(Transform root,Material stone)
         {
@@ -186,6 +220,8 @@ namespace RollingPanda
         void OnDestroy(){ foreach(var mesh in ownedMeshes) if(mesh!=null) Destroy(mesh); if(glow!=null) Destroy(glow); }
     }
 }
+
+
 
 
 

@@ -136,3 +136,20 @@ Validation: editor and iOS-symbol compilation and existing gameplay checks passe
 Play-mode appearance review pending: dodge/jump rock readability and edge collisions,
 lantern slide clearance in daylight/night, cobble continuity at section joins, forest
 occlusion in portrait, and recycling after 960 m. EndlessPrototype remains unchanged.
+
+## Cool grey rocks and leaf vegetation refinement
+
+Obstacle stone now has its own cool light-grey palette, separate from the road and
+shrines, with light and dark facet materials for visible contrast. Eight irregular
+edges per ring, offset shoulders and a broken crown replace the rectangular slab.
+Existing conservative box collisions remain unchanged; the more chamfered silhouette
+needs close-pass review before final collision fitting.
+
+Rounded roadside shrub spheres are replaced by stemmed clusters of pointed folded
+leaves. Shared plant meshes vary in scale, rotation and green material, and join the
+existing section batching. Fern clusters use the same leaf geometry. Knolls remain
+rounded ground forms; canopy and distant hills retain their larger mass shapes.
+
+Editor and iOS-symbol compilation passed. Visual review pending in daylight and night:
+cool-grey stone readability, facet contrast, rock/collision agreement and vegetation
+silhouettes. These procedural forms still need final asset and performance refinement.
