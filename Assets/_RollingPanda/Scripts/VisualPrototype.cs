@@ -9,13 +9,19 @@ namespace RollingPanda
         readonly List<Material> materials = new List<Material>();
         RunnerMotor runner;
         Transform panda, leftArm, rightArm, leftFoot, rightFoot, tails;
-        float phase;
+        float phase, airTime;
+        bool wasAirborne;
+        double previousDistance;
+        CharacterController controller;
+        ForestAtmosphere forest;
         Material ivory, ink, red, bamboo, leaves, stone, roof, gold;
 
         void Start()
         {
             runner = GetComponentInChildren<RunnerMotor>();
             if (runner == null) { enabled = false; return; }
+            controller = runner.GetComponent<CharacterController>();
+            forest = gameObject.AddComponent<ForestAtmosphere>();
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null) { enabled = false; return; }
             ivory = Mat(shader, new Color(.92f,.89f,.79f));
@@ -31,7 +37,7 @@ namespace RollingPanda
             panda.SetParent(runner.transform, false);
             Part(panda,"Pear shaped body",PrimitiveType.Sphere,new Vector3(0,.85f,0),new Vector3(.83f,1.05f,.67f),ivory);
             Part(panda,"Shoulders",PrimitiveType.Sphere,new Vector3(0,1.14f,0),new Vector3(.9f,.42f,.63f),ink);
-            var head = Part(panda,"Head",PrimitiveType.Sphere,new Vector3(0,1.6f,.03f),new Vector3(.94f,.81f,.76f),ivory);
+            Part(panda,"Head",PrimitiveType.Sphere,new Vector3(0,1.6f,.03f),new Vector3(.94f,.81f,.76f),ivory);
             foreach (float side in new[]{-1f,1f})
             {
                 Part(panda,"Round ear",PrimitiveType.Sphere,new Vector3(side*.36f,1.94f,.025f),new Vector3(.29f,.3f,.2f),ink);
@@ -56,7 +62,7 @@ namespace RollingPanda
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = new Color(.43f,.59f,.57f);
-            RenderSettings.fogStartDistance = 65;
+            RenderSettings.fogStartDistance = 55;
             RenderSettings.fogEndDistance = 155;
             RenderSettings.ambientLight = new Color(.57f,.65f,.62f);
             Camera camera = Camera.main;
@@ -73,45 +79,63 @@ namespace RollingPanda
 
         void Decorate(Transform section)
         {
-            // Children travel with the existing pooled sections, including origin shifts.
-            for (int side=-1;side<=1;side+=2)
-            {
-                Part(section,"Stone verge",PrimitiveType.Cube,new Vector3(side*5.3f,-.05f,48),new Vector3(.6f,.35f,96),stone);
-                for (int z=6;z<96;z+=12)
-                {
-                    float x = side*(7.4f+(z%3)*.45f);
-                    float height = 5+(z%4)*.6f;
-                    Part(section,"Bamboo stalk",PrimitiveType.Cylinder,new Vector3(x,height/2,z),new Vector3(.18f,height/2,.18f),bamboo);
-                    for (int node=1;node<4;node++)
-                        Part(section,"Bamboo node",PrimitiveType.Cylinder,new Vector3(x,node*height/4,z),new Vector3(.22f,.035f,.22f),gold);
-                    var canopy = Part(section,"Bamboo foliage",PrimitiveType.Sphere,new Vector3(x,height-.4f,z),new Vector3(2.5f,.6f,1.4f),leaves);
-                    canopy.localRotation = Quaternion.Euler(0,z*7,side*18);
-                }
-                Part(section,"Temple plinth",PrimitiveType.Cube,new Vector3(side*10,0,48),new Vector3(4,.7f,6),stone);
-                Part(section,"Temple pavilion",PrimitiveType.Cube,new Vector3(side*10,2,48),new Vector3(3,3.4f,4),red);
-                Part(section,"Temple roof lower",PrimitiveType.Cube,new Vector3(side*10,3.9f,48),new Vector3(4.7f,.3f,5.6f),roof);
-                Part(section,"Temple roof crown",PrimitiveType.Cube,new Vector3(side*10,4.25f,48),new Vector3(3.3f,.45f,4.2f),roof);
-                Part(section,"Temple gold trim",PrimitiveType.Cube,new Vector3(side*10,3.65f,48),new Vector3(3.3f,.12f,4.3f),gold);
-            }
+            forest.Build(section, bamboo, leaves, bamboo, stone, roof, red, gold);
         }
 
         void LateUpdate()
         {
             if (panda == null) return;
-            bool stopped = runner.Paused || runner.Finished || (runner.Session != null && runner.Session.Defeated);
-            if (stopped) return;
-            phase += Time.deltaTime * runner.CurrentSpeed * .9f;
-            bool airborne = !runner.GetComponent<CharacterController>().isGrounded;
-            float swing = airborne ? 0 : Mathf.Sin(phase)*32;
-            panda.localPosition = new Vector3(0,runner.Sliding ? .4f : airborne ? 0 : Mathf.Abs(Mathf.Sin(phase))*.045f,0);
-            panda.localRotation = Quaternion.Euler(runner.Sliding ? 72 : airborne ? -8 : 5,0,0);
-            leftArm.localRotation = Quaternion.Euler(airborne ? -65 : swing,0,-10);
-            rightArm.localRotation = Quaternion.Euler(airborne ? -65 : -swing,0,10);
-            leftFoot.localRotation = Quaternion.Euler(airborne ? -35 : -swing,0,0);
-            rightFoot.localRotation = Quaternion.Euler(airborne ? 30 : swing,0,0);
-            tails.localRotation = Quaternion.Euler(Mathf.Sin(phase)*12,0,Mathf.Sin(phase*.7f)*10);
+            // A restart can happen while airborne or in the low kick pose.
+            if (runner.DistanceTravelled < previousDistance)
+            {
+                airTime=0; wasAirborne=false; phase=0;
+                panda.localPosition=Vector3.zero; panda.localRotation=Quaternion.identity;
+            }
+            previousDistance=runner.DistanceTravelled;
+            bool stopped=runner.Paused || runner.Finished || (runner.Session!=null && runner.Session.Defeated);
+            if(stopped) return;
+            float dt=Time.deltaTime;
+            phase+=dt*Mathf.Lerp(12,18,Mathf.InverseLerp(15,32,runner.CurrentSpeed));
+            bool airborne=!controller.isGrounded && !runner.Sliding;
+            if(airborne && !wasAirborne) airTime=0;
+            if(airborne) airTime+=dt; else airTime=0;
+            wasAirborne=airborne;
+            float gait=Mathf.Sin(phase), counter=Mathf.Sin(phase+Mathf.PI);
+            float blend=1-Mathf.Exp(-18*dt);
+            Quaternion bodyRotation;
+            Vector3 bodyPosition;
+            if(runner.Sliding)
+            {
+                // Low, feet-first martial-arts lunge; the tested sliding capsule is unchanged.
+                bodyRotation=Quaternion.Euler(-68,0,-8);
+                bodyPosition=new Vector3(0,.12f,.3f);
+            }
+            else if(airborne)
+            {
+                float t=Mathf.Clamp01(airTime/.72f);
+                float turn=360*t*t*(3-2*t);
+                bodyRotation=Quaternion.Euler(turn,0,0);
+                Vector3 pivot=new Vector3(0,1,0);
+                bodyPosition=pivot-bodyRotation*pivot;
+            }
+            else
+            {
+                bodyRotation=Quaternion.Euler(7+Mathf.Sin(phase*2)*2,gait*3,gait*3);
+                bodyPosition=new Vector3(0,.025f+Mathf.Cos(phase*2)*.025f,0);
+            }
+            panda.localRotation=airborne ? bodyRotation : Quaternion.Slerp(panda.localRotation,bodyRotation,blend);
+            panda.localPosition=airborne ? bodyPosition : Vector3.Lerp(panda.localPosition,bodyPosition,blend);
+            Pose(leftArm,runner.Sliding ? 45 : airborne ? -100 : gait*38,0,-12,blend);
+            Pose(rightArm,runner.Sliding ? -35 : airborne ? -100 : counter*38,0,12,blend);
+            Pose(leftFoot,runner.Sliding ? -110 : airborne ? -70 : counter*36,0,-3,blend);
+            Pose(rightFoot,runner.Sliding ? -20 : airborne ? -65 : gait*36,0,3,blend);
+            tails.localRotation=Quaternion.Euler(Mathf.Sin(phase-.5f)*16,Mathf.Sin(phase*.5f)*8,Mathf.Sin(phase*.7f)*12);
         }
 
+        static void Pose(Transform joint,float x,float y,float z,float blend)
+        {
+            joint.localRotation=Quaternion.Slerp(joint.localRotation,Quaternion.Euler(x,y,z),blend);
+        }
         Material Mat(Shader shader, Color color)
         {
             var material = new Material(shader); material.SetColor("_BaseColor",color); material.SetFloat("_Smoothness",.18f);
@@ -128,3 +152,4 @@ namespace RollingPanda
         void OnDestroy() { foreach(var material in materials) if(material != null) Destroy(material); }
     }
 }
+

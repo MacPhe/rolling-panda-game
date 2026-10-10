@@ -26,3 +26,28 @@ Next art steps: refine silhouette and camera from play feedback; build a proper 
 panda with facial expressions; replace pavilion/block shapes with temple environment
 assets; then collection feedback, audio and UI polish. Persistent pouch economy remains
 a later feature. VisualPrototype is intentionally not added to release build scenes yet.
+
+## Forest and martial-arts pass
+
+The visual scene now adds grassy banks, rounded hills and distant mountain silhouettes,
+layered bamboo fronds, open-sided pavilions with columns, sloped roofs and raised eaves,
+small altars, hanging lantern shapes and stone forest shrines. These are still procedural
+shape studies for the anime-inspired Chinese forest direction, not finished environment
+assets. All scenery stays outside the running lanes and has no active colliders.
+
+Scenery is combined into shared-material meshes once per pooled section. Generated meshes
+are destroyed when the scene closes. There is no scenery construction during recycling.
+This reduces draw calls; actual mobile performance and startup cost remain unmeasured.
+
+The panda run now blends opposing limb swings, body sway and headband motion. Jump uses
+one front flip around the body centre over 0.72 seconds. Slide uses a low, feet-first
+karate kick lunge. Collision capsules, jump arc, slide duration, controls and points are
+unchanged. This is visual choreography, not an attack/damage mechanic. Restart clears
+animation progress and pause freezes the pose.
+
+Play-mode review: repeat jump/landing and jump immediately after sliding; hold slide
+beneath purple beams; restart while flipping or lunging; pause/resume in both poses.
+Run past 960 m to check scenery recycling. Check obstacle visibility in portrait and
+landscape and look for visual clipping on slide transitions. Existing EndlessPrototype
+remains the gameplay comparison scene. Desktop/editor and iOS-symbol compilation passed;
+existing gesture/endless checks passed. Visual review and device profiling are pending.
