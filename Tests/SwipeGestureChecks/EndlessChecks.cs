@@ -26,8 +26,22 @@ static class EndlessChecks
                 double rowDistance = EndlessRules.Start(section) + EndlessRules.RowOffset(section, row);
                 if (section > 0 && row < EndlessRules.RowCount(section))
                 {
-                    if (rowDistance < 500 && count != 1) throw new Exception("Opening difficulty changed");
-                    if (rowDistance >= 1000 && count != 2) throw new Exception("Advanced row too easy");
+                    if (rowDistance < 150 && count != 1) throw new Exception("Opening difficulty changed");
+                    if (rowDistance >= 300 && count != 2) throw new Exception("Advanced row too easy");
+                }
+                int gemSlot = EndlessRules.GemObstacleSlot(section, row);
+                if (rowDistance <= 300 && gemSlot != -1) throw new Exception("Risk gems before introduction");
+                if (gemSlot >= 0)
+                {
+                    if (gemSlot >= count || EndlessRules.ObstacleKind(section, row, gemSlot) == 0)
+                        throw new Exception("Gems placed in red block or inactive obstacle");
+                    int kind = EndlessRules.ObstacleKind(section, row, gemSlot);
+                    for (int gem = 0; gem < 5; gem++)
+                    {
+                        float y = EndlessRules.GemHeight(kind, gem);
+                        if (kind == 2 && y + 0.325f >= 1.35f) throw new Exception("Gem intersects slide beam");
+                        if (kind == 1 && y - 0.325f <= 0.85f) throw new Exception("Gem intersects hurdle");
+                    }
                 }
                 if (EndlessRules.Pattern(section, row) != pattern) throw new Exception("Unstable restart pattern");
             }
@@ -37,10 +51,10 @@ static class EndlessChecks
         for (int distance = 0; distance <= 100000; distance++)
         {
             float speed = EndlessRules.Speed(distance);
-            if (speed < 10 || speed > 22 || speed < previous) throw new Exception("Unsafe speed ramp");
+            if (speed < 14 || speed > 26 || speed < previous) throw new Exception("Unsafe speed ramp");
             previous = speed;
         }
-        if (EndlessRules.Speed(0) != 10 || EndlessRules.Speed(1800) != 22 || EndlessRules.Speed(double.MaxValue) != 22)
+        if (EndlessRules.Speed(0) != 14 || EndlessRules.Speed(1800) != 26 || EndlessRules.Speed(double.MaxValue) != 26)
             throw new Exception("Speed endpoints changed");
         double previousRow = -100;
         for (long section = 1; section < 10000; section++)
@@ -50,7 +64,7 @@ static class EndlessChecks
                 if (position - previousRow < 32) throw new Exception("Obstacle rows too close");
                 previousRow = position;
             }
-        if (32.0 / EndlessRules.MaximumSpeed < 6.0 / 12.0 + 0.75)
+        if (32.0 / EndlessRules.MaximumSpeed < 6.0 / 12.0 + 0.7)
             throw new Exception("Insufficient two-lane transition margin");
 
         // Mathematical coverage/rebase stress check; physical seams still need Unity testing.

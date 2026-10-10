@@ -78,13 +78,12 @@ namespace RollingPanda
             section.Root.localPosition = new Vector3(0, 0, (float)(EndlessRules.Start(index) - origin));
             for (int row = 0; row < 3; row++)
             {
-                int pattern = EndlessRules.Pattern(index, row);
                 float z = EndlessRules.RowOffset(index, row);
                 int count = EndlessRules.ObstacleCount(index, row);
                 for (int slot = 0; slot < 2; slot++)
                 {
                 int lane = EndlessRules.ObstacleLane(index, row, slot);
-                int kind = (pattern + slot * (1 + (int)(index % 2))) % 3;
+                int kind = EndlessRules.ObstacleKind(index, row, slot);
                 float height = kind == 0 ? 4.5f : kind == 1 ? 0.85f : 1.5f;
                 var obstacle = section.Obstacles[row * 2 + slot];
                 obstacle.transform.localPosition = new Vector3(lane * RunnerMotor.LaneSpacing, kind == 2 ? 1.35f + height / 2 : height / 2, z);
@@ -94,10 +93,14 @@ namespace RollingPanda
                 obstacle.SetActive(slot < count);
                 }
                 int safeLane = EndlessRules.SafeLane(index, row);
+                int gemSlot = EndlessRules.GemObstacleSlot(index, row);
+                int gemLane = gemSlot < 0 ? safeLane : EndlessRules.ObstacleLane(index, row, gemSlot);
+                int gemKind = gemSlot < 0 ? -1 : EndlessRules.ObstacleKind(index, row, gemSlot);
                 for (int g = 0; g < 5; g++)
                 {
                     var gem = section.Gems[row * 5 + g];
-                    gem.transform.localPosition = new Vector3(safeLane * RunnerMotor.LaneSpacing, 1, z - 12 + g * 4);
+                    gem.transform.localPosition = new Vector3(gemLane * RunnerMotor.LaneSpacing,
+                        EndlessRules.GemHeight(gemKind, g), z - 8 + g * 4);
                     gem.ResetGem();
                     if (count == 0) gem.gameObject.SetActive(false);
                 }
