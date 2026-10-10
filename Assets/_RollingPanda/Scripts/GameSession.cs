@@ -8,6 +8,11 @@ namespace RollingPanda
         readonly List<BlueGem> gems = new List<BlueGem>();
         RunnerMotor runner;
         double distance;
+        bool leaving;
+#if !UNITY_EDITOR && !UNITY_STANDALONE
+        bool menuPressed;
+        Vector2 menuPressPosition;
+#endif
         GameArt hudArt;
         Font hudFont;
         GUIStyle counterStyle, metricStyle, panelStyle, buttonStyle;
@@ -47,8 +52,45 @@ namespace RollingPanda
             return 0;
         }
 
+        bool CanReturn => runner != null && (Defeated || runner.Paused || runner.Finished);
+        Rect MenuRect(float width,float height)
+        {
+            float panelWidth=Mathf.Min(430,width-32);
+            return new Rect((width-panelWidth)/2+12,Mathf.Max(82,height*.31f)+88,panelWidth-24,48);
+        }
+        void SaveBest()
+        {
+            long best;
+            long.TryParse(PlayerPrefs.GetString("RollingPanda.BestScore","0"),out best);
+            if(Score>best) { PlayerPrefs.SetString("RollingPanda.BestScore",Score.ToString()); PlayerPrefs.Save(); }
+        }
+        void ReturnToMenu()
+        {
+            if(leaving || !Application.CanStreamedLevelBeLoaded("StartMenu")) return;
+            leaving=true;SaveBest();RunnerInput.Reset();
+            UnityEngine.SceneManagement.SceneManager.LoadSceneAsync("StartMenu");
+        }
         void Update()
         {
+#if !UNITY_EDITOR && !UNITY_STANDALONE
+            var touch=UnityEngine.InputSystem.Touchscreen.current;
+            if(CanReturn && touch!=null)
+            {
+                var t=touch.primaryTouch;Rect safe=SafeArea();float scale=UiScale(safe);
+                if(scale>0)
+                {
+                    Vector2 p=new Vector2((t.position.ReadValue().x-safe.x)/scale,(safe.yMax-t.position.ReadValue().y)/scale);
+                    Rect r=MenuRect(safe.width/scale,safe.height/scale);
+                    if(t.press.wasPressedThisFrame) { menuPressed=r.Contains(p);menuPressPosition=p; }
+                    if(t.press.wasReleasedThisFrame)
+                    {
+                        if(menuPressed && r.Contains(p) && Vector2.Distance(p,menuPressPosition)<24) ReturnToMenu();
+                        menuPressed=false;
+                    }
+                }
+            }
+            else menuPressed=false;
+#endif
 #if UNITY_EDITOR || UNITY_STANDALONE
             var keyboard = UnityEngine.InputSystem.Keyboard.current;
             if (keyboard != null && keyboard.f8Key.wasPressedThisFrame)
@@ -74,6 +116,7 @@ namespace RollingPanda
             if (!safe.Contains(screenPosition)) return true;
             float scale = UiScale(safe);
             float yFromTop = safe.yMax - screenPosition.y;
+            if(CanReturn && MenuRect(safe.width/scale,safe.height/scale).Contains(new Vector2((screenPosition.x-safe.x)/scale,yFromTop/scale))) return true;
             return yFromTop < 70f * scale || yFromTop > safe.height - 80f * scale;
         }
         public void RegisterGem(BlueGem gem) { gems.Add(gem); gem.Initialize(this); }
@@ -91,6 +134,7 @@ namespace RollingPanda
             distance = System.Math.Max(distance, runner.DistanceTravelled);
             Defeated = true;
             DefeatReason = reason;
+            SaveBest();
         }
 
         public void ResetRun()
@@ -136,11 +180,14 @@ namespace RollingPanda
             if(Defeated || runner.Paused || runner.Finished)
             {
                 float panelWidth=Mathf.Min(430,width-32),left=(width-panelWidth)/2,top=Mathf.Max(82,height*.31f);
-                GUI.Box(new Rect(left,top,panelWidth,128),"");
+                GUI.Box(new Rect(left,top,panelWidth,150),"");
                 string state=Defeated ? "Run ended" : runner.Finished ? "Course complete!" : "Paused";
                 GUI.Label(new Rect(left+12,top+10,panelWidth-24,30),state,panelStyle);
                 GUI.Label(new Rect(left+12,top+44,panelWidth-24,38),Defeated ? DefeatReason : "Swipe left/right: lanes   Up: jump   Down: slide",panelStyle);
-                GUI.Label(new Rect(left+12,top+86,panelWidth-24,30),"Restart for a new run",panelStyle);
+                bool menuClicked=GUI.Button(MenuRect(width,height),"Main menu",buttonStyle);
+#if UNITY_EDITOR || UNITY_STANDALONE
+                if(menuClicked) ReturnToMenu();
+#endif
             }
             bool restartClicked=GUI.Button(new Rect(16,height-68,(width-40)/2,52),"Restart",buttonStyle);
             bool pauseClicked=GUI.Button(new Rect(24+(width-40)/2,height-68,(width-40)/2,52),runner.Paused ? "Resume" : "Pause",buttonStyle);
@@ -164,4 +211,6 @@ namespace RollingPanda
         }
     }
 }
+
+
 
