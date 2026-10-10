@@ -15,7 +15,7 @@
 | Pause / resume | P or Escape |
 | Restart the test | R |
 
-The player runs at 10 metres per second. Lanes are 3 metres apart, jump height is approximately 2.2 metres, and a slide lasts 0.7 seconds. Repeated jump presses in the air do not add extra jumps. Sliding starts only on the ground; jumping cancels a slide. Lane changes are available during jumps and slides. The fixed test course ends at 990 metres (about 99 seconds). Press R to reset it. This is not an endless-track implementation yet.
+The player runs at 10 metres per second. Lanes are 3 metres apart, jump height is approximately 2.2 metres, and a tapped slide lasts one second. Hold S/Down to stay low longer. Repeated jump presses in the air do not add extra jumps. Sliding starts only on the ground; jumping cancels a slide when there is room to stand. Lane changes are available during jumps and slides. The fixed test course ends at 990 metres (about 99 seconds). Press R to reset it. This is not an endless-track implementation yet.
 
 ## Check before the next phase
 

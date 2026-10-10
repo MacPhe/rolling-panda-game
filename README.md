@@ -1,5 +1,7 @@
 # Rolling Panda
 
+**First game loop:** open `Assets/_RollingPanda/Scenes/GameLoopPrototype.unity` and press Play for obstacles, blue gems, score, defeat, and restart. See [game loop controls and checks](docs/GAME-LOOP-PROTOTYPE.md).
+
 **Movement checkpoint:** open `Assets/_RollingPanda/Scenes/MovementPrototype.unity`, press Play, and click the Game view. See [controls and validation checklist](docs/MOVEMENT-PROTOTYPE.md). The track and player are created on Play; the Phase 1 Main scene remains unchanged.
 
 A planned three-lane mobile endless runner in semi-realistic stylised 3D: an expressive red-headband panda, bamboo and temple scenery, jumping, sliding, obstacles, and blue gems.

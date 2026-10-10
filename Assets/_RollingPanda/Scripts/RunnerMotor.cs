@@ -11,13 +11,16 @@ namespace RollingPanda
         const float LateralSpeed = 12f;
         const float Gravity = -25f;
         const float JumpHeight = 2.2f;
-        const float SlideDuration = 0.7f;
+        const float SlideDuration = 1f;
+        const float StandingHeight = 2f;
+        const float SlidingHeight = 0.9f;
         CharacterController controller;
         Transform visual;
         Vector3 startPosition;
         float verticalSpeed, slideTime;
         int lane;
         bool paused;
+        public GameSession Session { get; set; }
 
         public bool Paused => paused;
         public bool Finished => transform.position.z >= FinishDistance;
@@ -37,7 +40,7 @@ namespace RollingPanda
             var commands = RunnerInput.Read();
             if (commands.Restart) { Restart(); return; }
             if (commands.TogglePause) paused = !paused;
-            if (paused || Finished) return;
+            if (paused || Finished || (Session != null && Session.Defeated)) return;
 
             float dt = Time.deltaTime;
             lane = Mathf.Clamp(lane + commands.LaneStep, -1, 1);
@@ -47,10 +50,16 @@ namespace RollingPanda
             if (slideTime > 0f)
             {
                 slideTime = Mathf.Max(0f, slideTime - dt);
-                if (slideTime == 0f) SetStanding(true);
+                if (commands.SlideHeld) slideTime = Mathf.Max(slideTime, 0.1f);
+                if (slideTime == 0f)
+                {
+                    // Never expand the capsule into a beam just because the timer ended.
+                    if (CanStand()) SetStanding(true);
+                    else slideTime = 0.05f;
+                }
             }
 
-            if (commands.Jump && grounded)
+            if (commands.Jump && grounded && CanStand())
             {
                 slideTime = 0f;
                 SetStanding(true);
@@ -67,11 +76,37 @@ namespace RollingPanda
             float forward = Mathf.Min(ForwardSpeed * dt, FinishDistance - transform.position.z);
             var flags = controller.Move(new Vector3(targetX - transform.position.x, verticalSpeed * dt, forward));
             if ((flags & CollisionFlags.Above) != 0 && verticalSpeed > 0f) verticalSpeed = 0f;
+            if (Session != null && !Session.Defeated)
+            {
+                // Catch any obstacle overlapping the current capsule after movement.
+                Vector3 center = transform.position + controller.center;
+                float halfSegment = controller.height * 0.5f - controller.radius;
+                foreach (var hit in Physics.OverlapCapsule(center + Vector3.up * halfSegment,
+                    center - Vector3.up * halfSegment, controller.radius, ~0, QueryTriggerInteraction.Ignore))
+                    if (hit.TryGetComponent<RunnerObstacle>(out var obstacle)) Session.Fail(obstacle.Instruction);
+            }
+        }
+
+        void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            if (Session != null && hit.collider.TryGetComponent<RunnerObstacle>(out var obstacle))
+                Session.Fail(obstacle.Instruction);
+        }
+
+        bool CanStand()
+        {
+            Vector3 center = transform.position + Vector3.up * (StandingHeight * 0.5f);
+            float halfSegment = StandingHeight * 0.5f - controller.radius;
+            foreach (var hit in Physics.OverlapCapsule(center + Vector3.up * halfSegment,
+                center - Vector3.up * halfSegment, controller.radius + controller.skinWidth,
+                ~0, QueryTriggerInteraction.Ignore))
+                if (hit.TryGetComponent<RunnerObstacle>(out _)) return false;
+            return true;
         }
 
         void SetStanding(bool standing)
         {
-            float height = standing ? 2f : 0.9f;
+            float height = standing ? StandingHeight : SlidingHeight;
             controller.height = height;
             controller.center = Vector3.up * (height * 0.5f);
             if (visual == null) return;
@@ -89,6 +124,7 @@ namespace RollingPanda
             slideTime = 0f;
             paused = false;
             SetStanding(true);
+            if (Session != null) Session.ResetRun();
         }
     }
 }

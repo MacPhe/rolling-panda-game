@@ -6,15 +6,16 @@ namespace RollingPanda
     public readonly struct RunnerCommands
     {
         public readonly int LaneStep;
-        public readonly bool Jump, Slide, Restart, TogglePause;
+        public readonly bool Jump, Slide, Restart, TogglePause, SlideHeld;
 
-        public RunnerCommands(int laneStep, bool jump, bool slide, bool restart, bool togglePause)
+        public RunnerCommands(int laneStep, bool jump, bool slide, bool restart, bool togglePause, bool slideHeld)
         {
             LaneStep = laneStep;
             Jump = jump;
             Slide = slide;
             Restart = restart;
             TogglePause = togglePause;
+            SlideHeld = slideHeld;
         }
     }
 
@@ -30,7 +31,8 @@ namespace RollingPanda
                 keyboard.spaceKey.wasPressedThisFrame || keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame,
                 keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame,
                 keyboard.rKey.wasPressedThisFrame,
-                keyboard.pKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame);
+                keyboard.pKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame,
+                keyboard.downArrowKey.isPressed || keyboard.sKey.isPressed);
         }
     }
 }
