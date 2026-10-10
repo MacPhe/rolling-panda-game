@@ -8,8 +8,8 @@ namespace RollingPanda
         sealed class Section
         {
             public Transform Root;
-            public GameObject[] Obstacles = new GameObject[2];
-            public BlueGem[] Gems = new BlueGem[10];
+            public GameObject[] Obstacles = new GameObject[6];
+            public BlueGem[] Gems = new BlueGem[15];
         }
         readonly Section[] sections = new Section[EndlessRules.SectionCount];
         RunnerMotor runner;
@@ -37,10 +37,14 @@ namespace RollingPanda
                 Cube(section.Root, "Lane line", new Vector3(x, 0.01f, 48), new Vector3(0.08f, 0.02f, 96), lines, false);
             for (int z = 0; z < 96; z += 12)
                 Cube(section.Root, "Distance stripe", new Vector3(0, 0.015f, z), new Vector3(9.5f, 0.02f, 0.12f), lines, false);
-            for (int row = 0; row < 2; row++)
+            for (int row = 0; row < 3; row++)
             {
-                section.Obstacles[row] = Cube(section.Root, "Obstacle", Vector3.zero, Vector3.one, red, true);
-                section.Obstacles[row].AddComponent<RunnerObstacle>();
+                for (int slot = 0; slot < 2; slot++)
+                {
+                    var obstacle = Cube(section.Root, "Obstacle", Vector3.zero, Vector3.one, red, true);
+                    obstacle.AddComponent<RunnerObstacle>();
+                    section.Obstacles[row * 2 + slot] = obstacle;
+                }
                 for (int g = 0; g < 5; g++)
                 {
                     var gemObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -72,25 +76,30 @@ namespace RollingPanda
         void Configure(Section section, long index)
         {
             section.Root.localPosition = new Vector3(0, 0, (float)(EndlessRules.Start(index) - origin));
-            for (int row = 0; row < 2; row++)
+            for (int row = 0; row < 3; row++)
             {
                 int pattern = EndlessRules.Pattern(index, row);
-                int lane = pattern / 3 - 1, kind = pattern % 3;
-                float z = 24 + row * 48;
+                float z = EndlessRules.RowOffset(index, row);
+                int count = EndlessRules.ObstacleCount(index, row);
+                for (int slot = 0; slot < 2; slot++)
+                {
+                int lane = EndlessRules.ObstacleLane(index, row, slot);
+                int kind = (pattern + slot * (1 + (int)(index % 2))) % 3;
                 float height = kind == 0 ? 4.5f : kind == 1 ? 0.85f : 1.5f;
-                var obstacle = section.Obstacles[row];
+                var obstacle = section.Obstacles[row * 2 + slot];
                 obstacle.transform.localPosition = new Vector3(lane * RunnerMotor.LaneSpacing, kind == 2 ? 1.35f + height / 2 : height / 2, z);
                 obstacle.transform.localScale = new Vector3(2.2f, height, 1.2f);
                 obstacle.GetComponent<Renderer>().sharedMaterial = kind == 0 ? red : kind == 1 ? gold : purple;
                 obstacle.GetComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Slide under purple beams";
-                obstacle.SetActive(index != 0); // Opening section gives time to settle and choose a lane.
-                int safeLane = lane == 1 ? 0 : lane + 1;
+                obstacle.SetActive(slot < count);
+                }
+                int safeLane = EndlessRules.SafeLane(index, row);
                 for (int g = 0; g < 5; g++)
                 {
                     var gem = section.Gems[row * 5 + g];
                     gem.transform.localPosition = new Vector3(safeLane * RunnerMotor.LaneSpacing, 1, z - 12 + g * 4);
                     gem.ResetGem();
-                    if (index == 0) gem.gameObject.SetActive(false);
+                    if (count == 0) gem.gameObject.SetActive(false);
                 }
             }
         }
