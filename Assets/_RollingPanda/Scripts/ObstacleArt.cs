@@ -16,8 +16,8 @@ namespace RollingPanda
             rockLight=new Material(stone); rockLight.SetColor("_BaseColor",new Color(.86f,.89f,.94f));
             rockDark=new Material(stone); rockDark.SetColor("_BaseColor",new Color(.42f,.49f,.58f));
             paper=new Material(purple); paper.EnableKeyword("_EMISSION");
-            paper.SetColor("_BaseColor",new Color(.62f,.27f,.72f));
-            paper.SetColor("_EmissionColor",new Color(.38f,.12f,.5f));
+            paper.SetColor("_BaseColor",new Color(1f,.64f,.23f));
+            paper.SetColor("_EmissionColor",new Color(.85f,.32f,.065f));
             for(int kind=0;kind<3;kind++)
             {
                 var root=new GameObject(kind==0 ? "Large asymmetric rock" : kind==1 ? "Small rock formation" : "Floating lantern");
@@ -32,20 +32,66 @@ namespace RollingPanda
                 }
                 else
                 {
-                    Cube(root.transform,Vector3.zero,new Vector3(.98f,.98f,.98f),paper);
-                    foreach(float y in new[]{-.46f,.46f})
-                        Cube(root.transform,new Vector3(0,y,0),new Vector3(1,.08f,1),wood);
-                    for(int rib=0;rib<5;rib++)
-                    {
-                        float x=-.46f+rib*.23f;
-                        Cube(root.transform,new Vector3(x,0,-.495f),new Vector3(.018f,.9f,.009f),gold);
-                        Cube(root.transform,new Vector3(x,0,.495f),new Vector3(.018f,.9f,.009f),gold);
-                    }
-                    Cube(root.transform,new Vector3(0,0,-.499f),new Vector3(.16f,.23f,.002f),purple);
-                }
-                root.SetActive(false);
+                    Lantern(root.transform,wood,gold,red);
+                }                root.SetActive(false);
             }
             Refresh();
+        }
+        void Lantern(Transform parent,Material wood,Material gold,Material red)
+        {
+            const int sides=20;
+            float[] ys={-.46f,-.3f,0,.3f,.46f};
+            float[] widths={.34f,.46f,.5f,.46f,.34f};
+            var vertices=new Vector3[sides*5];var faces=new List<int>();
+            for(int ring=0;ring<5;ring++) for(int edge=0;edge<sides;edge++)
+            {
+                float angle=edge*Mathf.PI*2/sides;
+                vertices[ring*sides+edge]=new Vector3(Mathf.Cos(angle)*widths[ring],ys[ring],Mathf.Sin(angle)*widths[ring]);
+                if(ring<4)
+                {
+                    int a=ring*sides+edge,b=ring*sides+(edge+1)%sides,c=a+sides,d=b+sides;
+                    faces.AddRange(new[]{a,c,b,b,c,d});
+                }
+            }
+            var mesh=new Mesh();mesh.vertices=vertices;mesh.SetTriangles(faces,0);mesh.RecalculateNormals();mesh.RecalculateBounds();meshes.Add(mesh);
+            var body=new GameObject("Warm curved paper lantern");body.transform.SetParent(parent,false);
+            body.AddComponent<MeshFilter>().sharedMesh=mesh;body.AddComponent<MeshRenderer>().sharedMaterial=paper;
+            foreach(float y in new[]{-.475f,.475f})
+            {
+                var cap=GameObject.CreatePrimitive(PrimitiveType.Cylinder);cap.name="Dark wooden lantern cap";
+                cap.transform.SetParent(parent,false);cap.transform.localPosition=new Vector3(0,y,0);cap.transform.localScale=new Vector3(.72f,.025f,.72f);
+                var collider=cap.GetComponent<Collider>();collider.enabled=false;Destroy(collider);cap.GetComponent<Renderer>().sharedMaterial=wood;
+            }
+            // Short rib segments follow the curved paper, rather than a rectangular frame.
+            for(int rib=0;rib<10;rib++) for(int ring=0;ring<4;ring++)
+            {
+                float angle=rib*Mathf.PI*2/10;
+                Vector3 a=new Vector3(Mathf.Cos(angle)*(widths[ring]-.008f),ys[ring],Mathf.Sin(angle)*(widths[ring]-.008f));
+                Vector3 b=new Vector3(Mathf.Cos(angle)*(widths[ring+1]-.008f),ys[ring+1],Mathf.Sin(angle)*(widths[ring+1]-.008f));
+                var go=GameObject.CreatePrimitive(PrimitiveType.Cube);go.name="Curved lantern rib";go.transform.SetParent(parent,false);
+                go.transform.localPosition=(a+b)*.5f;go.transform.localRotation=Quaternion.FromToRotation(Vector3.up,b-a);
+                go.transform.localScale=new Vector3(.012f,(b-a).magnitude,.012f);
+                var collider=go.GetComponent<Collider>();collider.enabled=false;Destroy(collider);go.GetComponent<Renderer>().sharedMaterial=gold;
+            }
+            Cube(parent,new Vector3(0,0,-.499f),new Vector3(.1f,.16f,.002f),red);
+            BatchLantern(parent);
+        }
+        void BatchLantern(Transform root)
+        {
+            var groups=new Dictionary<Material,List<CombineInstance>>();
+            foreach(var filter in root.GetComponentsInChildren<MeshFilter>())
+            {
+                Material material=filter.GetComponent<Renderer>().sharedMaterial;
+                if(!groups.ContainsKey(material)) groups[material]=new List<CombineInstance>();
+                groups[material].Add(new CombineInstance{mesh=filter.sharedMesh,transform=root.worldToLocalMatrix*filter.transform.localToWorldMatrix});
+                filter.gameObject.SetActive(false);Destroy(filter.gameObject);
+            }
+            foreach(var group in groups)
+            {
+                var mesh=new Mesh();mesh.CombineMeshes(group.Value.ToArray(),true,true);meshes.Add(mesh);
+                var go=new GameObject("Batched lantern detail");go.transform.SetParent(root,false);
+                go.AddComponent<MeshFilter>().sharedMesh=mesh;go.AddComponent<MeshRenderer>().sharedMaterial=group.Key;
+            }
         }
         void Rock(Transform parent,Material material,int variant)
         {
@@ -103,5 +149,7 @@ namespace RollingPanda
         void OnDestroy(){foreach(var mesh in meshes) if(mesh!=null) Destroy(mesh);if(paper!=null) Destroy(paper);if(rockLight!=null) Destroy(rockLight);if(rockDark!=null) Destroy(rockDark);}
     }
 }
+
+
 
 

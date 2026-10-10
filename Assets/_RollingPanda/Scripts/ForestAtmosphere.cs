@@ -35,13 +35,9 @@ namespace RollingPanda
                     for(int k=0;k<3;k++)
                     {
                         float x=side*(8+i%3*1.3f+k*3.5f), bz=z+k*2.1f;
-                        float h=6+(i+k)%4;
-                        Shape(root,PrimitiveType.Cylinder,new Vector3(x,h/2,bz),new Vector3(.14f,h/2,.14f),bark);
-                        for(int n=0;n<3;n++)
-                        {
-                            var frond=Shape(root,PrimitiveType.Sphere,new Vector3(x+side*n*.4f,h-.4f+n*.2f,bz),new Vector3(3.2f,.3f,1.1f),leaf);
-                            frond.localRotation=Quaternion.Euler(0,n*58+i*13,side*(15+n*12));
-                        }
+                        float h=9+(i+k)%5;
+                        Shape(root,PrimitiveType.Cylinder,new Vector3(x,h/2,bz),new Vector3(.24f,h/2,.24f),bark);
+                        LeafyCrown(root,new Vector3(x,h-.6f,bz),1.05f,leaf,grass);
                     }
                     for(int blade=0;blade<9;blade++)
                     {
@@ -65,8 +61,17 @@ namespace RollingPanda
                             spray.localRotation=Quaternion.Euler(blade*9,blade*41,side*24);
                         }
                     }
-                    var crown=Shape(root,PrimitiveType.Sphere,new Vector3(side*7,6.8f,z),new Vector3(5.5f,.7f,4),leaf);
-                    crown.localRotation=Quaternion.Euler(0,cluster*19,side*12);
+                    if(cluster%2==0)
+                    {
+                        float height=10+cluster%3;
+                        Shape(root,PrimitiveType.Cylinder,new Vector3(side*8,height/2,z),new Vector3(.6f,height/2,.6f),bark);
+                        for(int branch=0;branch<3;branch++)
+                        {
+                            var limb=Shape(root,PrimitiveType.Cylinder,new Vector3(side*(8+branch*.5f),height-2+branch*.5f,z+.4f),new Vector3(.22f,1.6f,.22f),bark);
+                            limb.localRotation=Quaternion.Euler(25,branch*80,side*35);
+                        }
+                        LeafyCrown(root,new Vector3(side*8,height,z),1.65f,leaf,grass);
+                    }
                 }
                 // Rock faces, moss shelves and forest-floor detail form distinct depth layers.
                 for(int ridge=0;ridge<4;ridge++)
@@ -96,6 +101,18 @@ namespace RollingPanda
                 Shrine(root,side*7,78,stone,roof,trim);
             }
             Combine(root);
+        }
+        void LeafyCrown(Transform root,Vector3 centre,float size,Material leaf,Material grass)
+        {
+            // Overlapping three-dimensional masses with visible leaf sprays, not flat discs.
+            for(int clump=0;clump<5;clump++)
+            {
+                float angle=clump*Mathf.PI*2/5;
+                Vector3 offset=new Vector3(Mathf.Cos(angle)*1.25f,(clump%3)*.75f,Mathf.Sin(angle)*1.25f)*size;
+                var mass=Shape(root,PrimitiveType.Sphere,centre+offset,new Vector3(2.7f,2.5f,2.8f)*size,clump%3==0 ? grass : leaf);
+                mass.localRotation=Quaternion.Euler(clump*11,clump*71,clump*9);
+                Plant(root,centre+offset+Vector3.up*.9f*size,1.65f*size,clump*71,leaf);
+            }
         }
         Mesh CreatePlantMesh()
         {
@@ -220,6 +237,7 @@ namespace RollingPanda
         void OnDestroy(){ foreach(var mesh in ownedMeshes) if(mesh!=null) Destroy(mesh); if(glow!=null) Destroy(glow); }
     }
 }
+
 
 
 

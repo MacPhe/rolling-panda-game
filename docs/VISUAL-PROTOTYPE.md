@@ -153,3 +153,24 @@ rounded ground forms; canopy and distant hills retain their larger mass shapes.
 Editor and iOS-symbol compilation passed. Visual review pending in daylight and night:
 cool-grey stone readability, facet contrast, rock/collision agreement and vegetation
 silhouettes. These procedural forms still need final asset and performance refinement.
+
+## Warm curved lanterns and full tree crowns
+
+The floating slide lantern now has a curved, ring-built amber paper body with warm
+emission, dark wooden end caps, gold ribs that follow the curvature, and a small red
+ornament. Purple paper and the rectangular frame are removed. Geometry remains within
+the original obstacle envelope, with unchanged slide height and box collision. As with
+rocks, curved outer corners use conservative box collisions pending final collision
+fitting. Rib/cap meshes are batched by material at startup, not during the run.
+
+Former flat bamboo foliage discs are replaced by layered three-dimensional crowns:
+overlapping leaf masses with pointed leaf sprays, varied green tones and uneven heights.
+Bamboo is taller (9–13 m), and larger branching trees add deeper crowns beside the path.
+Low flat roadside canopy discs are removed. Scenery remains non-colliding, pooled and
+batched; the increased foliage density requires profiling before mobile performance
+claims. These remain procedural visual assets awaiting final art refinement.
+
+Editor and iOS-symbol compilation passed. Play-mode review pending: lantern warmth in
+daylight/night, slide readability and clearance, forest fullness in portrait/landscape,
+foliage clipping/occlusion, and scenery recycling beyond 960 m. The previous gameplay
+comparison scene remains unchanged.
