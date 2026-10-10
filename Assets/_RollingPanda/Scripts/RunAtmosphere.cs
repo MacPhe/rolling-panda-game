@@ -10,6 +10,7 @@ namespace RollingPanda
         ForestAtmosphere forest;
         Light sun;
         Camera view;
+        RunSky sky;
         Material foliage, grass;
         readonly Light[] lamps = new Light[4];
         readonly Transform[] selected = new Transform[4];
@@ -26,6 +27,7 @@ namespace RollingPanda
                 lamps[i].color=new Color(1,.55f,.2f); lamps[i].range=8;
                 lamps[i].shadows=LightShadows.None; lamps[i].enabled=false;
             }
+            sky=gameObject.AddComponent<RunSky>();sky.Initialize(runner);
             RenderSettings.ambientMode=AmbientMode.Flat;
             Apply();
         }
@@ -39,10 +41,11 @@ namespace RollingPanda
             Color fog=Color.Lerp(new Color(.54f,.7f,.66f),new Color(.1f,.16f,.24f),dark);
             fog=Color.Lerp(fog,new Color(.65f,.43f,.36f),dusk*.4f);
             RenderSettings.fog=true; RenderSettings.fogMode=FogMode.Linear; RenderSettings.fogColor=fog;
-            RenderSettings.fogStartDistance=Mathf.Lerp(65,40,mist);
-            RenderSettings.fogEndDistance=Mathf.Lerp(155,120,mist);
+            RenderSettings.fogStartDistance=Mathf.Lerp(80,60,mist);
+            RenderSettings.fogEndDistance=Mathf.Lerp(165,135,mist);
             RenderSettings.ambientLight=Color.Lerp(new Color(.62f,.7f,.65f),new Color(.32f,.4f,.52f),dark);
             if(view!=null) view.backgroundColor=fog;
+            if(sky!=null) sky.Apply(distance,dark,dusk,mist);
             if(sun!=null)
             {
                 sun.intensity=Mathf.Lerp(1.15f,.42f,dark);
