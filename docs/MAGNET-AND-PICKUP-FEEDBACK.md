@@ -8,7 +8,7 @@ Each collected blue/red/green pickup sends a small, matching-colour +1 from its 
 ## Magnet
 - First spawn is randomly 324–492 m; subsequent gaps are randomly 312–480 m, within the requested 300–500 m interval. Half-row offsets keep the pickup between obstacle rows, in a random lane.
 - One reusable pickup uses the locally imported BTM Magnet prefab, converted to URP. A red/white U-shaped fallback is used if the asset reference is missing.
-- Collect it to activate 15 seconds of attraction, with a countdown under the HUD counters. Timer pauses with gameplay; another magnet refreshes it to 15 seconds rather than adding time.
+- Collect it to activate 7.5 seconds of attraction, with a countdown under the HUD counters. Timer pauses with gameplay; another magnet refreshes it to 7.5 seconds rather than adding time.
 - All three gem types in every lane are attracted from up to 24 m ahead and 3 m behind, including the high green pouch. This deliberately makes rare pouches easier to obtain during the powerup.
 - Attraction moves pickup objects toward the panda and collects once. Uncollected attracted pickups return to their previous section-relative positions when the effect ends. Pool reuse resets attraction state. Restart removes the effect and schedules a new first spawn; origin rebasing preserves the magnet's absolute distance.
 - Magnet collection uses a swept distance check to avoid skipping the pickup between frames. The magnet itself has no physical obstacle collider. No change to obstacle collisions, speed, points or ordinary spawn rules.
@@ -16,6 +16,10 @@ Each collected blue/red/green pickup sends a small, matching-colour +1 from its 
 Stop Play to allow the imported-art resource to refresh. Use Rolling Panda > Refresh imported forest art if the Magnet prefab is not picked up.
 
 ## Validation
-Desktop, iOS conditional and editor-tool compilation pass. New MagnetChecks verify 100,000 spawn gaps and obstacle-row exclusions, pause/expiry timing, all-lane/high-pouch attraction range and swept pickup collection. Existing gesture/endless checks pass. These are rules/compilation checks, not a Unity physics or visual test.
+Desktop, iOS conditional and editor-tool compilation pass. New MagnetChecks verify 100,000 kilometre blocks, minimum gaps and obstacle-row exclusions, pause/expiry timing, all-lane/high-pouch attraction range and swept pickup collection. Existing gesture/endless checks pass. These are rules/compilation checks, not a Unity physics or visual test.
 
-Unity checklist: clear old Console entries, run and collect gems; check no new CreateImpl errors; check +1 reaches the correct counter; encounter a magnet after 300 m, miss one then collect another; check countdown, refresh, pause/resume and expiry; restart during attraction; run beyond the 960 m origin reset and collect red/green pickups at their thresholds. Confirm no duplicate counts or stray attracted gems after section recycling. Test portrait/landscape HUD and physical iPhone performance when available.
+Unity checklist: clear old Console entries, run and collect gems; check no new CreateImpl errors; check +1 reaches the correct counter; encounter one magnet per kilometre block, miss one then collect another; check countdown, refresh, pause/resume and expiry; restart during attraction; run beyond the 960 m origin reset and collect red/green pickups at their thresholds. Confirm no duplicate counts or stray attracted gems after section recycling. Test portrait/landscape HUD and physical iPhone performance when available.
+
+
+## Cosmetic lantern motion
+Floating lantern art now bobs up/down by at most 3.5 cm, drifts left/right by at most 4 cm and tilts by at most 1.2 degrees, with varied phases. Only the collider-free art child changes; obstacle root position/scale and BoxCollider size/centre remain untouched. Rocks remain static. Animation freezes on pause/end and resets its child pose when a pooled obstacle is enabled. Test sliding beneath lanterns while they sway, plus pause/resume and section recycling. Compilation/rules tests do not verify the rendered effect or Unity collision integration.

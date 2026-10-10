@@ -8,14 +8,16 @@ static class Program
         var random=new Random(932);double previous=0;
         for(int i=0;i<100000;i++)
         {
-            double next=MagnetRules.Next(previous,random.Next(8),i==0),gap=next-previous;
-            Check(gap>=300 && gap<=500,"spawn interval");
+            double next=MagnetRules.Next(previous,random.Next(),i==0),gap=next-previous;
+            Check(System.Math.Floor(next/1000)==i,"exactly one spawn per kilometre block");
+            Check(next-i*1000>=250 && next-i*1000<=750,"random middle-kilometre position");
+            if(i>0) Check(gap>=500,"no boundary clustering or continuous magnet chaining");
             Check(next%24==12,"magnet lies between all obstacle rows");previous=next;
         }
-        float timer=15;
+        float timer=MagnetRules.Duration;
         for(int i=0;i<1000;i++) timer=MagnetRules.Tick(timer,1,false);
-        Check(timer==15,"pause freezes timer");
-        for(int i=0;i<899;i++) timer=MagnetRules.Tick(timer,1f/60,true);
+        Check(timer==7.5f,"pause freezes timer");
+        for(int i=0;i<449;i++) timer=MagnetRules.Tick(timer,1f/60,true);
         Check(timer>0 && timer<.04f,"duration before expiry");
         for(int i=0;i<5;i++) timer=MagnetRules.Tick(timer,1f/60,true);
         Check(timer==0,"duration expires without going negative");
@@ -24,6 +26,6 @@ static class Program
         Check(MagnetRules.CanCollect(0,-2,2),"swept collection at low frame rate");
         Check(!MagnetRules.CanCollect(3,-2,2),"wrong lane cannot collect");
         Check(!MagnetRules.CanCollect(0,-2,-1),"passed pickup cannot collect again");
-        Console.WriteLine("Magnet rules passed: 100,000 spawn gaps/row exclusions, paused and expired timer, all-lane range and swept collection.");
+        Console.WriteLine("Magnet rules passed: 100,000 kilometre blocks/row exclusions/minimum gaps, paused and expired timer, all-lane range and swept collection.");
     }
 }

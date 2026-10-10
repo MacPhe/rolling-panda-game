@@ -72,7 +72,7 @@ namespace RollingPanda
         void Schedule(bool first)
         {
             // Obstacles sit on multiples of 24 m; half-row positions avoid their hitboxes.
-            nextDistance=MagnetRules.Next(nextDistance,random.Next(8),first);
+            nextDistance=MagnetRules.Next(nextDistance,random.Next(),first);
             lane=random.Next(-1,2);previousDelta=float.PositiveInfinity;pickup.gameObject.SetActive(false);
         }
         public void ResetPowerup()

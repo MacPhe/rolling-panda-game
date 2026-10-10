@@ -10,8 +10,12 @@ namespace RollingPanda
         readonly List<Mesh> meshes=new List<Mesh>();
         Material paper, rockLight, rockDark;
         int current=-1;
+        GameSession session;
+        float swayClock,swayPhase;
         public void Initialize(Material stone,Material wood,Material red,Material gold,Material purple,Material moss)
         {
+            session=GetComponentInParent<GameSession>();
+            swayPhase=transform.position.x*.71f+transform.position.z*.11f;
             GetComponent<Renderer>().enabled=false;
             rockLight=new Material(stone); rockLight.SetColor("_BaseColor",new Color(.86f,.89f,.94f));
             rockDark=new Material(stone); rockDark.SetColor("_BaseColor",new Color(.42f,.49f,.58f));
@@ -131,8 +135,23 @@ namespace RollingPanda
             go.AddComponent<MeshFilter>().sharedMesh=mesh;
             go.AddComponent<MeshRenderer>().sharedMaterials=new[]{material,rockLight,rockDark};
         }
-        void OnEnable(){if(variants[0]!=null) Refresh();}
-        void LateUpdate(){if(variants[0]!=null) Refresh();}
+        void OnEnable()
+        {
+            swayClock=0;
+            if(variants[2]!=null) {variants[2].transform.localPosition=Vector3.zero;variants[2].transform.localRotation=Quaternion.identity;}
+            if(variants[0]!=null) Refresh();
+        }
+        void LateUpdate()
+        {
+            if(variants[0]==null) return;
+            Refresh();
+            if(current!=2 || session==null || !session.IsRunning) return;
+            swayClock+=Time.deltaTime;
+            // Move only the collider-free lantern art. Obstacle root and BoxCollider stay fixed.
+            Vector3 scale=transform.lossyScale;
+            variants[2].transform.localPosition=new Vector3(.04f/Mathf.Max(.01f,Mathf.Abs(scale.x))*Mathf.Sin(swayClock*.9f+swayPhase),.035f/Mathf.Max(.01f,Mathf.Abs(scale.y))*Mathf.Sin(swayClock*1.3f+swayPhase*.7f),0);
+            variants[2].transform.localRotation=Quaternion.Euler(0,0,Mathf.Sin(swayClock*.8f+swayPhase)*1.2f);
+        }
         void Refresh()
         {
             float height=transform.localScale.y;int kind=height>3 ? 0 : height<1 ? 1 : 2;
