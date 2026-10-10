@@ -8,6 +8,7 @@ namespace RollingPanda
     {
         readonly List<Mesh> ownedMeshes = new List<Mesh>();
         public readonly List<Transform> LampSockets = new List<Transform>();
+        public bool UseImportedForest { get; set; }
         Material glow;
         Mesh plantMesh;
         public void SetWarmth(float darkness) { if(glow!=null) glow.SetColor("_EmissionColor",new Color(1,.4f,.08f)*Mathf.Lerp(.15f,2.5f,darkness)); }
@@ -51,7 +52,7 @@ namespace RollingPanda
                 {
                     float z=4+cluster*8;
                     Shape(root,PrimitiveType.Sphere,new Vector3(side*6.5f,-.1f,z),new Vector3(2.4f,1.2f,4),grass);
-                    for(int bush=0;bush<4;bush++)
+                    for(int bush=0;bush<(UseImportedForest ? 0 : 4);bush++)
                     {
                         float x=side*(7.2f+bush*2.3f);
                         Plant(root,new Vector3(x,.12f,z+bush%2*2),1+bush*.15f,cluster*29,bush%2==0 ? leaf : grass);
@@ -61,7 +62,7 @@ namespace RollingPanda
                             spray.localRotation=Quaternion.Euler(blade*9,blade*41,side*24);
                         }
                     }
-                    if(cluster%2==0)
+                    if(cluster%2==0 && !UseImportedForest)
                     {
                         float height=10+cluster%3;
                         Shape(root,PrimitiveType.Cylinder,new Vector3(side*8,height/2,z),new Vector3(.6f,height/2,.6f),bark);
@@ -104,6 +105,7 @@ namespace RollingPanda
         }
         void LeafyCrown(Transform root,Vector3 centre,float size,Material leaf,Material grass)
         {
+            if(UseImportedForest) return;
             // Overlapping three-dimensional masses with visible leaf sprays, not flat discs.
             for(int clump=0;clump<5;clump++)
             {
@@ -237,6 +239,7 @@ namespace RollingPanda
         void OnDestroy(){ foreach(var mesh in ownedMeshes) if(mesh!=null) Destroy(mesh); if(glow!=null) Destroy(glow); }
     }
 }
+
 
 
 

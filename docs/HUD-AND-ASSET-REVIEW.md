@@ -73,3 +73,19 @@ restart counters, pause/resume buttons, and recycling past 960 m.
 - No full pipeline conversion or blanket replacement of the imported assets was made.
   Next recommendation: test a small summer-tree/bush/log set in the visual scene, then
   add a restrained blossom effect around one shrine section.
+
+## Approved asset integration follow-up
+
+Summer/autumn Tree1–8 and Bush1–2, Log1–3, Stump1–6, and the cherry-blossom effect are
+now wired into VisualPrototype via a locally generated EnvironmentArt catalog. Trees
+and bushes replace the corresponding procedural shapes; bamboo, ferns and terrain
+remain. Autumn sections begin around 2400 m and continue to 4800 m within each 6000 m
+route. Logs/stumps remain off-road. Warm shrine lighting is retained with nearby petals.
+Runtime URP material copies preserve source atlas textures/tints without modifying vendor
+materials. Imported scenery colliders and behaviours are disabled. Both seasonal groups
+are prepared once in the existing pool, and petal systems are bounded and distance-culled.
+
+Stop Play and allow imports, or use Rolling Panda > Refresh imported forest art.
+Editor/mobile-symbol/editor-preparation compilation and existing gameplay checks passed.
+Visual appearance, source pivots/scale, transparency and performance remain pending.
+Raw imported assets remain local dependencies. Future power-ups remain deferred.

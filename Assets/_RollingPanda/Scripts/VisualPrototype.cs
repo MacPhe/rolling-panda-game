@@ -24,6 +24,8 @@ namespace RollingPanda
             forest = gameObject.AddComponent<ForestAtmosphere>();
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null) { enabled = false; return; }
+            var environmentArt=Resources.Load<EnvironmentArt>("Presentation/EnvironmentArt");
+            forest.UseImportedForest=gameObject.AddComponent<ImportedForest>().Initialize(runner,environmentArt);
             ivory = Mat(shader, new Color(.92f,.89f,.79f));
             ink = Mat(shader, new Color(.035f,.045f,.045f));
             red = Mat(shader, new Color(.72f,.055f,.045f));
@@ -188,6 +190,7 @@ namespace RollingPanda
         void OnDestroy() { foreach(var material in materials) if(material != null) Destroy(material); }
     }
 }
+
 
 
 

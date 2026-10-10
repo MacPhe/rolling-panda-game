@@ -222,3 +222,40 @@ the pickup sphere artwork in VisualPrototype without changing trigger sizes/posi
 Editor preparation bakes three matching icons and a runtime mesh reference from the
 user-imported model. Stop Play, allow import, then test; the Rolling Panda menu can
 refresh the art. Imported packs and font remain local project dependencies.
+
+## Imported summer/autumn forest and shrine petals
+
+The four approved asset groups are now integrated into VisualPrototype. Stop Play and
+allow Unity imports; if needed select Rolling Panda > Refresh imported forest art.
+The local builder creates Resources/Presentation/EnvironmentArt.asset with references
+to the installed LowPolyTrees and COMICOMI prefabs. Vendor source files are not uploaded
+to the public repository. Missing imported catalog falls back to procedural scenery.
+
+Each of the eight existing pooled sections prepares both seasonal groups once: varied
+summer/autumn Tree1–8 and Bush1–2 prefabs. Imported crowns replace procedural canopy
+masses and roadside shrubs; bamboo stalks, ferns, terrain, mountains and shrines remain.
+Logs and stumps add off-road floor detail. Props are grounded from their renderer bounds,
+scaled consistently, and trees are width-limited to keep the road open. Imported scripts,
+colliders and rigidbody motion are disabled for scenery. Shadows are disabled on those
+renderers pending performance profiling. No imported prop is spawned during recycling.
+
+Summer is used initially. Sections around 2400–4800 m use autumn variants; summer
+returns afterward, repeating on a 6000 m route. The choice uses the section's absolute
+world distance so origin shifts and restarting do not scramble seasons. Boundaries are
+section-based mixes, not a screen-wide colour switch. Both groups are prebuilt; only
+one is active per section. Existing lighting progression remains in effect.
+
+Tree/prop materials are converted to runtime URP/Lit copies preserving their atlas
+texture and tint, without editing vendor materials. Imported petal materials receive
+URP particle copies with transparency. Petal effects sit near pavilion/shrine areas,
+use local simulation so rebasing/recycling carries them safely, and clear when distant.
+They run only near the player, pause with gameplay, disable bursts/trails/subemitters/
+collisions, and limit each particle system to 48 particles with 6 emitted per second.
+No power-ups are enabled.
+
+Validation: editor, iOS-symbol and editor-preparation compilation passed; existing
+15 gesture checks and endless/pickup/speed/pool checks passed. Rendered art, transparency,
+imported prefab pivots, seasonal joins, restart and particle recycling still need Unity
+Play-mode review. Check the first forest, shrine petals, autumn around 2400 m, returning
+summer around 4800 m, and F8/portrait visibility. Startup memory and draw calls are not
+profiled on iPhone yet; both seasonal groups are resident even though only one renders.
