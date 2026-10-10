@@ -10,6 +10,8 @@ namespace RollingPanda
         readonly PickupToast[] toasts=new PickupToast[32];
         int nextToast;
         RunnerMagnet magnet;
+        RunnerShield shield;
+        public bool ShieldActive => shield!=null && ShieldRules.Protects(shield.Remaining);
         GUIStyle toastStyle;
         RunnerMotor runner;
         double distance;
@@ -140,12 +142,15 @@ namespace RollingPanda
 
         void LateUpdate()
         {
+            if(shield==null && Track!=null) {shield=gameObject.AddComponent<RunnerShield>();shield.Initialize(runner,this);}
             if(magnet==null && Track!=null) {magnet=gameObject.AddComponent<RunnerMagnet>();magnet.Initialize(runner,this,gems);}
             if(IsRunning) for(int i=0;i<toasts.Length;i++) if(toasts[i].Active)
             {toasts[i].Age+=Time.deltaTime;if(toasts[i].Age>=.7f) toasts[i].Active=false;}
             if (runner != null && !runner.Paused)
                 distance = System.Math.Max(distance, runner.DistanceTravelled);
         }
+
+        public void HitObstacle(string reason) { if(!ShieldActive) Fail(reason); }
 
         public void Fail(string reason)
         {
@@ -159,7 +164,7 @@ namespace RollingPanda
         public void ResetRun()
         {
             Defeated = false;
-            System.Array.Clear(toasts,0,toasts.Length);nextToast=0;if(magnet!=null) magnet.ResetPowerup();
+            System.Array.Clear(toasts,0,toasts.Length);nextToast=0;if(shield!=null) shield.ResetPowerup();if(magnet!=null) magnet.ResetPowerup();
             DefeatReason = null;
             pickups.Reset();
             distance = 0f;
@@ -218,6 +223,8 @@ namespace RollingPanda
 #endif
             if(magnet!=null && magnet.Remaining>0)
                 GUI.Label(new Rect(18,57,205,25),"Magnet  "+Mathf.CeilToInt(magnet.Remaining)+"s",counterStyle);
+            if(shield!=null && shield.Remaining>0)
+                GUI.Label(new Rect(18,magnet!=null && magnet.Remaining>0 ? 82 : 57,205,25),"Shield  "+Mathf.CeilToInt(shield.Remaining)+"s",counterStyle);
             DrawToasts(safe,scale);
             GUI.matrix=previous;
         }

@@ -91,14 +91,14 @@ namespace RollingPanda
                 int count = Physics.OverlapCapsuleNonAlloc(center + Vector3.up * halfSegment,
                     center - Vector3.up * halfSegment, controller.radius, overlapResults, ~0, QueryTriggerInteraction.Ignore);
                 for (int i = 0; i < count; i++)
-                    if (overlapResults[i].TryGetComponent<RunnerObstacle>(out var obstacle)) Session.Fail(obstacle.Instruction);
+                    if (overlapResults[i].TryGetComponent<RunnerObstacle>(out var obstacle)) Session.HitObstacle(obstacle.Instruction);
             }
         }
 
         void OnControllerColliderHit(ControllerColliderHit hit)
         {
             if (Session != null && hit.collider.TryGetComponent<RunnerObstacle>(out var obstacle))
-                Session.Fail(obstacle.Instruction);
+                Session.HitObstacle(obstacle.Instruction);
         }
 
         bool CanStand()

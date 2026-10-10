@@ -9,6 +9,7 @@ namespace RollingPanda
         readonly GameObject[] variants=new GameObject[3];
         readonly List<Mesh> meshes=new List<Mesh>();
         Material paper, rockLight, rockDark;
+        public Transform LanternSocket => variants[2]==null ? null : variants[2].transform;
         int current=-1;
         GameSession session;
         float swayClock,swayPhase;
@@ -21,7 +22,7 @@ namespace RollingPanda
             rockDark=new Material(stone); rockDark.SetColor("_BaseColor",new Color(.42f,.49f,.58f));
             paper=new Material(purple); paper.EnableKeyword("_EMISSION");
             paper.SetColor("_BaseColor",new Color(1f,.64f,.23f));
-            paper.SetColor("_EmissionColor",new Color(.85f,.32f,.065f));
+            paper.SetColor("_EmissionColor",new Color(4.5f,1.6f,.25f));
             for(int kind=0;kind<3;kind++)
             {
                 var root=new GameObject(kind==0 ? "Large asymmetric rock" : kind==1 ? "Small rock formation" : "Floating lantern");

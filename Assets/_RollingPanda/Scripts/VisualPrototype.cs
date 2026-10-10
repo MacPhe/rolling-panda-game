@@ -96,8 +96,13 @@ namespace RollingPanda
             Material wood=Mat(shader,new Color(.28f,.16f,.085f));
             Material jumpAccent=Mat(shader,new Color(1,.65f,.12f));
             Material slideAccent=Mat(shader,new Color(.6f,.22f,.85f));
+            var lanternGlow=gameObject.AddComponent<LanternGlow>();lanternGlow.Initialize(runner);
             foreach(var obstacle in GetComponentsInChildren<RunnerObstacle>(true))
-                obstacle.gameObject.AddComponent<ObstacleArt>().Initialize(rock,wood,red,jumpAccent,slideAccent,leaves);
+            {
+                var obstacleArt=obstacle.gameObject.AddComponent<ObstacleArt>();
+                obstacleArt.Initialize(rock,wood,red,jumpAccent,slideAccent,leaves);
+                lanternGlow.Add(obstacleArt.LanternSocket);
+            }
         }
 
         Transform Limb(string name, Vector3 pivot, Vector3 scale, Material material)
