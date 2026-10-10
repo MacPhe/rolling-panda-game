@@ -95,7 +95,7 @@ namespace RollingPanda
         }
         IEnumerator RollIntoRun()
         {
-            // Preload while the deterministic animation runs; activate under the matched menu image.
+            // Preload during the roll and activate only once the short fade fully covers the view.
             var overlay = new GameObject("Roll into run transition").AddComponent<RunEntryTransition>();
             var operation = SceneManager.LoadSceneAsync("VisualPrototype");
             operation.allowSceneActivation = false;
@@ -156,12 +156,13 @@ namespace RollingPanda
                     Matrix4x4 perspective=Matrix4x4.Perspective(60,view.aspect,view.nearClipPlane,view.farClipPlane);
                     Matrix4x4 projection=menuProjection; for(int cell=0;cell<16;cell++) projection[cell]=Mathf.Lerp(menuProjection[cell],perspective[cell],chase); view.projectionMatrix=projection;
                 }
+                overlay.Opacity=Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-2.45f)/.25f));
                 yield return null;
             }
-            // Hold this matched chase view while loading; dissolve worlds instead of blacking out.
+            // Keep the camera alignment, with scene activation hidden by the short fade.
             view.ResetProjectionMatrix();
-            yield return new WaitForEndOfFrame();
-            overlay.Capture();
+            overlay.Opacity=1;
+            yield return null;
             overlay.Finish(operation);
         }
         void OnGUI()
