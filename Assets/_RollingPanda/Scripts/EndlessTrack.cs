@@ -8,13 +8,16 @@ namespace RollingPanda
         sealed class Section
         {
             public Transform Root;
-            public GameObject[] Obstacles = new GameObject[6];
-            public BlueGem[] Gems = new BlueGem[15];
+            public GameObject[] Obstacles = new GameObject[4];
+            public GameObject[] Intermediates = new GameObject[2];
+            public BlueGem[] Gems = new BlueGem[10];
+            public BlueGem Pouch;
         }
         readonly Section[] sections = new Section[EndlessRules.SectionCount];
         RunnerMotor runner;
         GameSession session;
         Material ground, lines, red, gold, purple, blue;
+        Material redGem, greenPouch;
         long nextIndex;
         double origin;
 
@@ -24,6 +27,8 @@ namespace RollingPanda
             runner = player; session = game;
             ground = groundMaterial; lines = lineMaterial; red = redMaterial;
             gold = goldMaterial; purple = purpleMaterial; blue = blueMaterial;
+            redGem = new Material(blue); redGem.SetColor("_BaseColor", new Color(1f, 0.06f, 0.15f));
+            greenPouch = new Material(blue); greenPouch.SetColor("_BaseColor", new Color(0.1f, 1f, 0.25f));
             for (int i = 0; i < sections.Length; i++) sections[i] = CreateSection(i);
             ResetTrack();
         }
@@ -37,8 +42,10 @@ namespace RollingPanda
                 Cube(section.Root, "Lane line", new Vector3(x, 0.01f, 48), new Vector3(0.08f, 0.02f, 96), lines, false);
             for (int z = 0; z < 96; z += 12)
                 Cube(section.Root, "Distance stripe", new Vector3(0, 0.015f, z), new Vector3(9.5f, 0.02f, 0.12f), lines, false);
-            for (int row = 0; row < 3; row++)
+            for (int row = 0; row < 2; row++)
             {
+                section.Intermediates[row] = Cube(section.Root, "Intermediate single obstacle", Vector3.zero, Vector3.one, red, true);
+                section.Intermediates[row].AddComponent<RunnerObstacle>();
                 for (int slot = 0; slot < 2; slot++)
                 {
                     var obstacle = Cube(section.Root, "Obstacle", Vector3.zero, Vector3.one, red, true);
@@ -60,6 +67,17 @@ namespace RollingPanda
                     session.RegisterGem(gem);
                 }
             }
+            var pouchObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            pouchObject.name = "Rare green pouch placeholder";
+            pouchObject.transform.SetParent(section.Root, false);
+            pouchObject.transform.localScale = Vector3.one * 0.5f;
+            pouchObject.GetComponent<Renderer>().sharedMaterial = greenPouch;
+            pouchObject.GetComponent<SphereCollider>().isTrigger = true;
+            var pouchBody = pouchObject.AddComponent<Rigidbody>();
+            pouchBody.isKinematic = true; pouchBody.useGravity = false;
+            section.Pouch = pouchObject.AddComponent<BlueGem>();
+            section.Pouch.Kind = PickupKind.Pouch;
+            session.RegisterGem(section.Pouch);
             return section;
         }
 
@@ -76,7 +94,7 @@ namespace RollingPanda
         void Configure(Section section, long index)
         {
             section.Root.localPosition = new Vector3(0, 0, (float)(EndlessRules.Start(index) - origin));
-            for (int row = 0; row < 3; row++)
+            for (int row = 0; row < 2; row++)
             {
                 float z = EndlessRules.RowOffset(index, row);
                 int count = EndlessRules.ObstacleCount(index, row);
@@ -99,12 +117,34 @@ namespace RollingPanda
                 for (int g = 0; g < 5; g++)
                 {
                     var gem = section.Gems[row * 5 + g];
+                    gem.Kind = PickupRules.Gem(EndlessRules.Start(index) + z - 8 + g * 4, index, row, g);
+                    gem.GetComponent<Renderer>().sharedMaterial = gem.Kind == PickupKind.Red ? redGem : blue;
                     gem.transform.localPosition = new Vector3(gemLane * RunnerMotor.LaneSpacing,
                         EndlessRules.GemHeight(gemKind, g), z - 8 + g * 4);
                     gem.ResetGem();
                     if (count == 0) gem.gameObject.SetActive(false);
                 }
+                var intermediate = section.Intermediates[row];
+                int intermediateKind = EndlessRules.Pattern(index, row) % 3;
+                float intermediateHeight = intermediateKind == 0 ? 4.5f : intermediateKind == 1 ? 0.85f : 1.5f;
+                intermediate.transform.localPosition = new Vector3(EndlessRules.IntermediateLane(index, row) * RunnerMotor.LaneSpacing,
+                    intermediateKind == 2 ? 1.35f + intermediateHeight / 2 : intermediateHeight / 2, 48 + row * 48);
+                intermediate.transform.localScale = new Vector3(2.2f, intermediateHeight, 1.2f);
+                intermediate.GetComponent<Renderer>().sharedMaterial = intermediateKind == 0 ? red : intermediateKind == 1 ? gold : purple;
+                intermediate.GetComponent<RunnerObstacle>().Instruction = intermediateKind == 0 ? "Dodge red blocks" : intermediateKind == 1 ? "Jump gold hurdles" : "Slide under purple beams";
+                intermediate.SetActive(EndlessRules.HasIntermediate(index, row));
             }
+            int pouchSlot = PickupRules.PouchSlot(index);
+            section.Pouch.transform.localPosition = new Vector3(EndlessRules.ObstacleLane(index, 0, pouchSlot) * RunnerMotor.LaneSpacing,
+                PickupRules.PouchHeight(index), EndlessRules.RowOffset(index, 0));
+            section.Pouch.ResetGem();
+            section.Pouch.gameObject.SetActive(PickupRules.HasPouch(index));
+        }
+
+        void OnDestroy()
+        {
+            if (redGem != null) Destroy(redGem);
+            if (greenPouch != null) Destroy(greenPouch);
         }
 
         public void ResetTrack()
