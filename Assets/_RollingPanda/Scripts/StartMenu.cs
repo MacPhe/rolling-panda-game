@@ -395,7 +395,8 @@ namespace RollingPanda
                 Shape(PrimitiveType.Sphere,"Relaxed paw",sleeper,new Vector3(-.28f+i*1.25f,-.36f,-.42f),new Vector3(.48f,.65f,.5f),black);
             var sleepingHead=new GameObject("Head").transform;sleepingHead.SetParent(sleeper,false);
             sleepingHead.localPosition=new Vector3(-.7f,.12f,-.17f);
-            sleepingHead.localRotation=Quaternion.Euler(0,180,0);
+            // Match the horizontal resting body; the landing rotation cancels this tilt.
+            sleepingHead.localRotation=Quaternion.Euler(0,0,90)*Quaternion.Euler(0,180,0);
             var sleepingLook=sleeper.gameObject.AddComponent<PandaLookStudy>();
             if(sleepingLook.BuildGameplay(sleepingHead,sleeper))sleepingLook.SetSleeping(true);
             var bag=Mat("Loot pouch",new Color(.43f,.24f,.1f));
@@ -427,6 +428,7 @@ namespace RollingPanda
         }
     }
 }
+
 
 
 
