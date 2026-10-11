@@ -77,7 +77,18 @@ namespace RollingPanda
                 part.SetParent(headRig,false);
                 part.localPosition = position - new Vector3(0,1.6f,0);
             }
-            panda.gameObject.AddComponent<PandaAppearance>().Initialize(headRig,leftArm,rightArm);
+            var oldHead=new List<Transform>();foreach(Transform part in headRig)oldHead.Add(part);
+            var character=panda.gameObject.AddComponent<PandaLookStudy>();
+            if(character.BuildGameplay(headRig,panda))
+            {
+                tails=null;
+                foreach(var part in oldHead){part.gameObject.SetActive(false);Destroy(part.gameObject);}
+                var cosmetics=new GameObject("Cosmetic socket - head").transform;cosmetics.SetParent(headRig,false);cosmetics.localPosition=new Vector3(0,.32f,0);
+                var back=new GameObject("Cosmetic socket - back").transform;back.SetParent(panda,false);back.localPosition=new Vector3(0,1.02f,-.36f);
+                var waist=new GameObject("Cosmetic socket - waist").transform;waist.SetParent(panda,false);waist.localPosition=new Vector3(0,.76f,0);
+                foreach(var wrist in new[]{leftArm,rightArm}){var socket=new GameObject("Cosmetic socket - wrist").transform;socket.SetParent(wrist,false);socket.localPosition=new Vector3(0,-.36f,.02f);}
+            }
+            else {character.enabled=false;panda.gameObject.AddComponent<PandaAppearance>().Initialize(headRig,leftArm,rightArm);}
             foreach (Transform child in transform)
                 if (child.name.StartsWith("Track section ")) Decorate(child);
             RenderSettings.fog = true;
@@ -185,7 +196,7 @@ namespace RollingPanda
             // One leg extends along travel; the other folds back for a side-kick silhouette.
             Pose(leftFoot,runner.Sliding ? 0 : Mathf.Lerp(counter*36,-150,tuck),0,-3,blend);
             Pose(rightFoot,runner.Sliding ? -105 : Mathf.Lerp(gait*36,-150,tuck),0,3,blend);
-            tails.localRotation=Quaternion.Euler(Mathf.Sin(phase-.5f)*16,Mathf.Sin(phase*.5f)*8,Mathf.Sin(phase*.7f)*12);
+            if(tails!=null) tails.localRotation=Quaternion.Euler(Mathf.Sin(phase-.5f)*16,Mathf.Sin(phase*.5f)*8,Mathf.Sin(phase*.7f)*12);
         }
 
         static void Pose(Transform joint,float x,float y,float z,float blend)

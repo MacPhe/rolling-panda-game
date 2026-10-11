@@ -10,6 +10,7 @@ namespace RollingPanda
         {
             model=Instantiate(template,transform,false);model.name="Shop panda display";model.gameObject.SetActive(true);
             var appearance=model.GetComponent<PandaAppearance>();if(appearance!=null){appearance.enabled=false;Destroy(appearance);}
+            foreach(var study in model.GetComponentsInChildren<PandaLookStudy>(true)){study.enabled=false;Destroy(study);}
             head=model.Find("Head tuck pivot");leftArm=model.Find("Left arm pivot");rightArm=model.Find("Right arm pivot");
             leftFoot=model.Find("Left leg pivot");rightFoot=model.Find("Right leg pivot");
             band=new GameObject("Preview bamboo").transform;band.SetParent(rightArm,false);band.localPosition=new Vector3(-.1f,-.35f,.05f);band.localRotation=Quaternion.Euler(0,0,35);

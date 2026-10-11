@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 namespace RollingPanda
 {
-    // Isolated look development. Not attached to the runner or any gameplay scene.
+    // Shared approved character surfaces, with an optional isolated look-development preview.
     public sealed class PandaLookStudy : MonoBehaviour
     {
         readonly List<Mesh> meshes=new List<Mesh>();readonly List<Material> materials=new List<Material>();
@@ -14,13 +14,42 @@ namespace RollingPanda
 #if !UNITY_EDITOR && !UNITY_STANDALONE
         int pressed=-1;Vector2 pressPosition;
 #endif
-        void Awake()
+        bool gameplay;
+        void Start(){if(!built)Build(false);}
+        public bool BuildGameplay(Transform head,Transform body)
+        {
+            gameplay=true;Build(true);if(!built)return false;
+            var shoulders=subject.Find("Shoulders");if(shoulders!=null){shoulders.gameObject.SetActive(false);Destroy(shoulders.gameObject);}
+            subject.SetParent(head,false);subject.localScale=Vector3.one*.74f;subject.localPosition=new Vector3(0,-1.11f,0);subject.localRotation=Quaternion.identity;
+            var shader=Shader.Find("Rolling Panda/Study Short Fur");
+            var pale=FurMaterials(shader,new Color(.94f,.9f,.8f),false);var dark=FurMaterials(shader,new Color(.19f,.195f,.21f),true);
+            var originals=body.GetComponentsInChildren<MeshRenderer>(true);
+            foreach(var renderer in originals)
+            {
+                if(renderer.transform.IsChildOf(head))continue;
+                string n=renderer.name;if(n!="Pear shaped body" && n!="Shoulders" && n!="Left arm" && n!="Right arm" && n!="Left leg" && n!="Right leg" && n!="Tail")continue;
+                var coat=n=="Pear shaped body" || n=="Tail" ? pale : dark;renderer.sharedMaterial=coat[0];
+                // Three outer layers for the smaller body surfaces; no extra colliders.
+                var filter=renderer.GetComponent<MeshFilter>();if(filter==null)continue;
+                for(int i=2;i<coat.Length;i+=2)
+                {
+                    var shell=new GameObject("Short body fur "+i);shell.transform.SetParent(renderer.transform,false);
+                    shell.AddComponent<MeshFilter>().sharedMesh=filter.sharedMesh;
+                    var surface=shell.AddComponent<MeshRenderer>();surface.sharedMaterial=coat[i];surface.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
+            }
+            enabled=false;return true;
+        }
+        void Build(bool forGameplay)
         {
             var lit=Shader.Find("Universal Render Pipeline/Lit");var furShader=Shader.Find("Rolling Panda/Study Short Fur");
             if(lit==null || furShader==null){Debug.LogError("Panda study shaders unavailable. Check the Console for shader import errors.");return;}
+            if(!forGameplay)
+            {
             var key=GameObject.Find("Soft studio key");
             if(key!=null) {key.transform.rotation=Quaternion.Euler(35,-35,0);var light=key.GetComponent<Light>();light.intensity=1.15f;light.color=new Color(1,.96f,.91f);}
             RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Flat;RenderSettings.ambientLight=new Color(.62f,.64f,.68f);
+            }
             fibres=FibreTexture();font=Resources.Load<Font>("Presentation/alagard");
             subject=new GameObject("Original panda bust").transform;subject.SetParent(transform,false);
             var ivory=FurMaterials(furShader,new Color(.94f,.9f,.8f),false);
@@ -205,7 +234,7 @@ namespace RollingPanda
         }
         void Update()
         {
-            if(!built)return;subject.localRotation=Quaternion.Euler(0,yaw,0);
+            if(!built || gameplay)return;subject.localRotation=Quaternion.Euler(0,yaw,0);
 #if !UNITY_EDITOR && !UNITY_STANDALONE
             var touch=Touchscreen.current;if(touch==null)return;var t=touch.primaryTouch;var p=t.position.ReadValue();p.y=Screen.height-p.y;
             if(t.press.wasPressedThisFrame){pressed=-1;pressPosition=p;for(int i=0;i<4;i++)if(ButtonRect(i).Contains(p))pressed=i;}
@@ -214,7 +243,7 @@ namespace RollingPanda
         }
         void OnGUI()
         {
-            if(!built)return;if(caption==null){caption=new GUIStyle(GUI.skin.label){font=font,fontSize=20};button=new GUIStyle(GUI.skin.button){font=font,fontSize=18};}
+            if(!built || gameplay)return;if(caption==null){caption=new GUIStyle(GUI.skin.label){font=font,fontSize=20};button=new GUIStyle(GUI.skin.button){font=font,fontSize=18};}
             GUI.Label(new Rect(Screen.safeArea.x+16,Screen.height-Screen.safeArea.yMax+12,Screen.safeArea.width-32,60),"Panda look study - face / short fur / removable band",caption);
             string[] labels={"Turn left","Turn right","Headband","Coat colour"};for(int i=0;i<4;i++)
             {
@@ -227,3 +256,4 @@ namespace RollingPanda
         void OnDestroy(){foreach(var m in meshes)if(m!=null)Destroy(m);foreach(var m in materials)if(m!=null)Destroy(m);if(fibres!=null)Destroy(fibres);}
     }
 }
+
