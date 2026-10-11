@@ -200,7 +200,6 @@ namespace RollingPanda
             DrawCounter(18,pickups.Blue,0);DrawCounter(82,pickups.Red,1);DrawCounter(146,pickups.Pouches,2);
             GUI.Label(new Rect(18,49,188,28),$"Score {Score}",counterStyle);
             float right=width-12;
-            GUI.Box(new Rect(right-150,10,150,44),"");
             GUI.Label(new Rect(right-142,15,134,32),$"{(long)distance} m",metricStyle);
             if(Defeated || runner.Paused || runner.Finished)
             {
@@ -263,6 +262,7 @@ namespace RollingPanda
         }
     }
 }
+
 
 
 

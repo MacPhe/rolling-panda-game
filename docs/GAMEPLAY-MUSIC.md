@@ -6,7 +6,7 @@ Gameplay percussion remains at 0.15 source volume. BGM16jungle loops at up to 0.
 
 Footsteps are reduced exactly 30%, from 0.09 to 0.063 source volume. Jump and slide levels are unchanged. Gem collection sounds remain the next upgrade.
 
-HUD: gem counters remain top left, with Score directly underneath in the same panel. Distance alone remains top right. Active powerup timers begin below the larger gem/score panel, and the top touch exclusion is extended to cover it. Existing gem +1 flights still target the same gem icons. The layout uses the existing portrait/landscape safe area scaling.
+HUD: gem counters remain top left, with Score directly underneath in the same panel. Distance alone remains top right as text on a transparent background, with its box removed. Active powerup timers begin below the larger gem/score panel, and the top touch exclusion is extended to cover it. Existing gem +1 flights still target the same gem icons. The layout uses the existing portrait/landscape safe area scaling.
 
 The editor's MovementAudioBuilder populates Shrine, Jungle and Percussion references from local imported packs. If music is absent, use Rolling Panda > Refresh movement audio outside Play Mode. No vendor audio is uploaded by this change.
 
@@ -19,3 +19,4 @@ Runtime/editor, iOS-defined runtime and editor-tool C# compilation pass against 
 3. Run through 800–1500m: Jungle should gradually join as mist increases. Continue beyond 3000m to hear it leave; it returns in the next mist cycle.
 4. Pause/resume, lose, restart and return to the menu; check no duplicated music or stale Jungle playback.
 5. Check Settings mute and portrait/landscape HUD. Score should sit under the gems, distance at top right, powerup timers below Score.
+
