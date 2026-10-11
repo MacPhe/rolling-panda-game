@@ -171,14 +171,14 @@ namespace RollingPanda
             if(entry)tuck=Mathf.Sin(RunEntryTransition.RevealProgress*Mathf.PI);
             if(rolling)tuck=1;
             float gait=Mathf.Sin(phase),counter=Mathf.Sin(phase+Mathf.PI);
-            panda.localScale=rolling ? new Vector3(.64f,.5f,.55f) : new Vector3(1,1-.22f*tuck,1);
+            panda.localScale=rolling ? new Vector3(1,.95f,1) : new Vector3(1,1-.22f*tuck,1);
             Quaternion rotation;Vector3 position;
             if(rolling)
             {
-                // Rotate the tucked visual around its centre inside the existing low capsule.
+                // Keep near-normal mass: the tuck, rather than global shrinking, creates the low silhouette.
                 rotation=Quaternion.Euler(rollTime*720,0,-laneSway*5);
                 var pivot=new Vector3(0,.9f,0);
-                position=new Vector3(0,.44f,0)-rotation*Vector3.Scale(pivot,panda.localScale);
+                position=new Vector3(0,.65f,0)-rotation*Vector3.Scale(pivot,panda.localScale);
             }
             else if(entry || airborne)
             {
@@ -197,7 +197,7 @@ namespace RollingPanda
             panda.localPosition=rolling || airborne || entry ? position : Vector3.Lerp(panda.localPosition,position,blend);
             // Collapse the roll immediately, so the first rotation does not swing an upright head below ground.
             float poseBlend=rolling ? 1 : blend;
-            headRig.localPosition=Vector3.Lerp(headRig.localPosition,new Vector3(0,1.6f-(rolling ? .45f : .28f)*tuck,.12f*tuck),poseBlend);
+            headRig.localPosition=Vector3.Lerp(headRig.localPosition,new Vector3(0,1.6f-(rolling ? .55f : .28f)*tuck,.12f*tuck),poseBlend);
             headRig.localRotation=Quaternion.Slerp(headRig.localRotation,Quaternion.Euler((rolling ? 45 : 32)*tuck,-laneSway*3,0),poseBlend);
             leftArm.localPosition=Vector3.Lerp(leftArm.localPosition,new Vector3(-.48f+.18f*tuck,1.15f-.12f*tuck,.15f*tuck),poseBlend);
             rightArm.localPosition=Vector3.Lerp(rightArm.localPosition,new Vector3(.48f-.18f*tuck,1.15f-.12f*tuck,.15f*tuck),poseBlend);
@@ -299,6 +299,7 @@ namespace RollingPanda
         void OnDestroy() { foreach(var material in materials) if(material != null) Destroy(material); }
     }
 }
+
 
 
 

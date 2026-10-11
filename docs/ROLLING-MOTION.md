@@ -1,6 +1,6 @@
 # Rolling Panda motion pass
 
-Down/S/downward swipe now presents a compact forward roll instead of the feet-first lunge. The panda curls its head and limbs into a ball and rotates around its body centre at two revolutions per second. Holding the existing low action continues the roll; releasing returns to running when the existing controller allows it. The animation uses a reduced visual scale and centred pivot to keep the silhouette low. The lantern collision capsule, action duration and stand-up clearance checks are unchanged.
+Down/S/downward swipe now presents a compact forward roll instead of the feet-first lunge. The panda curls its head and limbs into a ball and rotates around its body centre at two revolutions per second. Holding the existing low action continues the roll; releasing returns to running when the existing controller allows it. The animation retains full width/depth and 95% vertical scale, with a deeper head tuck and a 0.65m roll centre. This replaces the overly small first pass (64% width, 50% height and 55% depth). The tuck creates the low silhouette while retaining the character mass. The lantern collision capsule, action duration and stand-up clearance checks are unchanged.
 
 A change of target lane triggers a 0.36-second side-kick gesture in that direction. The leading leg extends sideways, the arms guard, and the torso turns slightly. Actual lateral movement adds a small smoothed lean, with head counter-motion and recovery into the existing run. Reversing direction starts the opposite gesture. Roll, jump and menu entry poses take priority over kicks. Jump front flips remain intact; kicks provide no attack or obstacle protection.
 
@@ -8,7 +8,7 @@ The prior animation is retained as LateUpdateLegacy. During Play Mode select Men
 
 ## Validation
 
-Unity 6000.6.5f1 runtime/editor, iOS runtime and editor tools compile. Existing input, pickups, shields, magnets, special spawns and endless-runner checks pass. This verifies compilation and existing logic, not the rendered animation: Unity Play Mode is unavailable here.
+Unity 6000.6.5f1 runtime/editor, iOS runtime and editor tools compile. Existing input, pickups, shields, magnets, special spawns and endless-runner checks pass. This verifies compilation and existing logic, not the rendered animation: Unity Play Mode is unavailable here. The supplied roll-size recording decoded to black frames in this environment, so the correction was based on the confirmed global scale reduction in the code and still needs visual review.
 
 ## Check in Unity
 
@@ -20,3 +20,4 @@ Unity 6000.6.5f1 runtime/editor, iOS runtime and editor tools compile. Existing 
 6. Pause/resume and restart during each action. Check full recovery, limbs, headband and no ground clipping.
 7. Try at starting and maximum speed. Side kicks are cosmetic; the runner remains vulnerable to obstacles normally.
 8. Compare with Rolling Motion off if the new poses need refinement. Audio levels and music are unchanged.
+
