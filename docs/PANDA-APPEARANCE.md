@@ -5,7 +5,7 @@ The character keeps its existing transform animation rig, jump, tucked front fli
 ## Visible changes
 
 - Warm ivory and charcoal short-fur surfaces share a generated 128px directional fur texture per panda.
-- Small tapered mesh clumps break up the outline of the head, ears, body, limbs and tail. Each part batches its clumps into one mesh; there are no individual hair objects or simulated strands.
+- Short, rounded mesh clumps break up the outline of the head, ears, body, limbs and tail. Clumps use smooth ellipsoid normals and project only about 0.03 unit beyond the head surface (less on limbs), replacing the pointed cone tufts. Fur strokes have low contrast and a small smoothing pass to reduce grain. Each part batches its clumps into one mesh; there are no individual hair objects or simulated strands.
 - The running panda has larger eye whites, amber irises, glossy pupils and catchlights, shaped brows, inner ears, fuller cheeks and a subtle smile.
 - The sleeping menu panda uses the same surface treatment and fur outline while keeping its closed eyes and existing sleeping pose.
 

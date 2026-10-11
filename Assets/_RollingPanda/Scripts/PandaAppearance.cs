@@ -88,38 +88,54 @@ namespace RollingPanda
         static Texture2D BuildFur()
         {
             const int size=128;var pixels=new Color[size*size];var rng=new System.Random(72419);
-            for(int i=0;i<pixels.Length;i++) { float v=.91f+(float)rng.NextDouble()*.09f;pixels[i]=new Color(v,v,v,1); }
+            for(int i=0;i<pixels.Length;i++) { float v=.98f+(float)rng.NextDouble()*.02f;pixels[i]=new Color(v,v,v,1); }
             // Short, tapered directional strokes; one small shared texture, no strand simulation.
             for(int i=0;i<2400;i++)
             {
                 int x=rng.Next(size),y=rng.Next(size),length=rng.Next(3,9);
-                float shade=.62f+(float)rng.NextDouble()*.22f;
+                float shade=.92f+(float)rng.NextDouble()*.05f;
                 for(int j=0;j<length;j++) { float v=Mathf.Lerp(shade,1,j/(float)length);pixels[((y+j)%size)*size+(x+j/4)%size]=new Color(v,v,v,1); }
             }
             var texture=new Texture2D(size,size,TextureFormat.RGBA32,true){name="Shared short panda fur",wrapMode=TextureWrapMode.Repeat,filterMode=FilterMode.Trilinear};
-            texture.SetPixels(pixels);texture.Apply(true,true);return texture;
+            var softened=new Color[pixels.Length];
+            for(int y=0;y<size;y++) for(int x=0;x<size;x++)
+            {
+                Color sum=Color.clear;
+                for(int dy=-1;dy<=1;dy++) for(int dx=-1;dx<=1;dx++) sum+=pixels[((y+dy+size)%size)*size+(x+dx+size)%size];
+                softened[y*size+x]=sum/9;
+            }
+            texture.SetPixels(softened);texture.Apply(true,true);return texture;
         }
         void AddFurOutline(Transform parent,int count,Material material,bool face)
         {
-            var vertices=new List<Vector3>();var triangles=new List<int>();var uv=new List<Vector2>();
+            var vertices=new List<Vector3>();var normals=new List<Vector3>();var triangles=new List<int>();var uv=new List<Vector2>();
+            const int sides=8,rings=4;
             for(int i=0;i<count;i++)
             {
                 float y=1-2*(i+.5f)/count,a=i*2.39996323f,r=Mathf.Sqrt(1-y*y);
                 var normal=new Vector3(Mathf.Cos(a)*r,y,Mathf.Sin(a)*r);
-                if(face && normal.z>.45f && normal.y<.65f) continue; // Keep eyes and muzzle clean.
+                if(face && normal.z>.45f && normal.y<.65f) continue;
                 var tangent=Vector3.Cross(normal,Mathf.Abs(normal.y)>.9f ? Vector3.right : Vector3.up).normalized;
                 var bitangent=Vector3.Cross(normal,tangent);
-                int start=vertices.Count;float length=face ? .065f+.045f*Mathf.Max(0,y) : .045f;
-                for(int ring=0;ring<2;ring++) for(int k=0;k<5;k++)
+                // Low rounded domes, embedded at the roots. No cones or elongated tips.
+                int start=vertices.Count;float height=face ? .045f : .032f,width=face ? .065f : .055f;
+                for(int ring=0;ring<rings;ring++) for(int k=0;k<sides;k++)
                 {
-                    float angle=k*Mathf.PI*2/5,width=ring==0 ? .045f : .028f;
-                    vertices.Add(normal*(.485f+ring*length*.5f)+(tangent*Mathf.Cos(angle)+bitangent*Mathf.Sin(angle))*width+Vector3.up*(ring*length*.14f));
-                    uv.Add(new Vector2(k/5f,ring*.5f));
+                    float theta=ring*Mathf.PI*.5f/rings,angle=k*Mathf.PI*2/sides;
+                    var across=tangent*Mathf.Cos(angle)+bitangent*Mathf.Sin(angle);
+                    vertices.Add(normal*(.486f+Mathf.Sin(theta)*height)+across*(Mathf.Cos(theta)*width));
+                    normals.Add((normal*(Mathf.Sin(theta)/height)+across*(Mathf.Cos(theta)/width)).normalized);
+                    uv.Add(new Vector2(k/(float)sides,ring/(float)rings));
                 }
-                vertices.Add(normal*(.5f+length)+Vector3.up*length*.35f);uv.Add(new Vector2(.5f,1));
-                for(int k=0;k<5;k++) { int next=(k+1)%5; triangles.AddRange(new[]{start+k,start+next,start+5+k,start+next,start+5+next,start+5+k,start+5+k,start+5+next,start+10}); }
+                int cap=vertices.Count;vertices.Add(normal*(.486f+height));normals.Add(normal);uv.Add(new Vector2(.5f,1));
+                for(int ring=0;ring<rings-1;ring++) for(int k=0;k<sides;k++)
+                {
+                    int lo=start+ring*sides+k,next=start+ring*sides+(k+1)%sides,hi=lo+sides,hiNext=next+sides;
+                    triangles.AddRange(new[]{lo,next,hi,next,hiNext,hi});
+                }
+                for(int k=0;k<sides;k++) triangles.AddRange(new[]{start+(rings-1)*sides+k,start+(rings-1)*sides+(k+1)%sides,cap});
             }
-            var mesh=new Mesh{name="Batched sculpted fur tufts"};mesh.SetVertices(vertices);mesh.SetTriangles(triangles,0);mesh.SetUVs(0,uv);mesh.RecalculateNormals();mesh.RecalculateBounds();ownedMeshes.Add(mesh);
+            var mesh=new Mesh{name="Batched rounded short-fur clumps"};mesh.SetVertices(vertices);mesh.SetNormals(normals);mesh.SetTriangles(triangles,0);mesh.SetUVs(0,uv);mesh.RecalculateBounds();ownedMeshes.Add(mesh);
             var obj=new GameObject("Fur silhouette");obj.transform.SetParent(parent,false);obj.AddComponent<MeshFilter>().sharedMesh=mesh;obj.AddComponent<MeshRenderer>().sharedMaterial=material;
         }
         void OnDestroy()
