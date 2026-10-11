@@ -12,6 +12,7 @@ namespace RollingPanda
             public GameObject[] Intermediates = new GameObject[2];
             public BlueGem[] Gems = new BlueGem[10];
             public BlueGem Pouch;
+            public BambooChute Chute;
         }
         readonly Section[] sections = new Section[EndlessRules.SectionCount];
         RunnerMotor runner;
@@ -78,6 +79,8 @@ namespace RollingPanda
             section.Pouch = pouchObject.AddComponent<BlueGem>();
             section.Pouch.Kind = PickupKind.Pouch;
             session.RegisterGem(section.Pouch);
+            var chuteObject=new GameObject("Bamboo rolling chute");chuteObject.transform.SetParent(section.Root,false);
+            section.Chute=chuteObject.AddComponent<BambooChute>();section.Chute.Build();chuteObject.SetActive(false);
             return section;
         }
 
@@ -107,7 +110,7 @@ namespace RollingPanda
                 obstacle.transform.localPosition = new Vector3(lane * RunnerMotor.LaneSpacing, kind == 2 ? 1.35f + height / 2 : height / 2, z);
                 obstacle.transform.localScale = new Vector3(2.2f, height, 1.2f);
                 obstacle.GetComponent<Renderer>().sharedMaterial = kind == 0 ? red : kind == 1 ? gold : purple;
-                obstacle.GetComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Slide under purple beams";
+                obstacle.GetComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Roll under lanterns";
                 obstacle.SetActive(slot < count);
                 }
                 int safeLane = EndlessRules.SafeLane(index, row);
@@ -125,14 +128,27 @@ namespace RollingPanda
                     if (count == 0) gem.gameObject.SetActive(false);
                 }
                 var intermediate = section.Intermediates[row];
-                int intermediateKind = EndlessRules.Pattern(index, row) % 3;
+                int intermediateKind = EndlessRules.IntermediateKind(index, row);
                 float intermediateHeight = intermediateKind == 0 ? 4.5f : intermediateKind == 1 ? 0.85f : 1.5f;
                 intermediate.transform.localPosition = new Vector3(EndlessRules.IntermediateLane(index, row) * RunnerMotor.LaneSpacing,
                     intermediateKind == 2 ? 1.35f + intermediateHeight / 2 : intermediateHeight / 2, 48 + row * 48);
                 intermediate.transform.localScale = new Vector3(2.2f, intermediateHeight, 1.2f);
                 intermediate.GetComponent<Renderer>().sharedMaterial = intermediateKind == 0 ? red : intermediateKind == 1 ? gold : purple;
-                intermediate.GetComponent<RunnerObstacle>().Instruction = intermediateKind == 0 ? "Dodge red blocks" : intermediateKind == 1 ? "Jump gold hurdles" : "Slide under purple beams";
+                intermediate.GetComponent<RunnerObstacle>().Instruction = intermediateKind == 0 ? "Dodge red blocks" : intermediateKind == 1 ? "Jump gold hurdles" : "Roll under lanterns";
                 intermediate.SetActive(EndlessRules.HasIntermediate(index, row));
+            }
+            bool chute=ChuteRules.Spawn(index);section.Chute.gameObject.SetActive(chute);
+            if(chute)
+            {
+                section.Chute.Lane=EndlessRules.SafeLane(index,0);
+                section.Chute.transform.localPosition=new Vector3(section.Chute.Lane*RunnerMotor.LaneSpacing,0,ChuteRules.StartOffset);
+                section.Intermediates[0].SetActive(false);
+                // Reserve the tunnel and a clear exit, retaining other lanes as optional routes.
+                section.Obstacles[2].SetActive(false);section.Obstacles[3].SetActive(false);
+                for(int g=0;g<5;g++)
+                {
+                    var gem=section.Gems[5+g];gem.transform.localPosition=new Vector3(section.Chute.Lane*RunnerMotor.LaneSpacing,.45f,44+g*5);gem.gameObject.SetActive(true);
+                }
             }
             int pouchSlot = PickupRules.PouchSlot(index);
             section.Pouch.transform.localPosition = new Vector3(EndlessRules.ObstacleLane(index, 0, pouchSlot) * RunnerMotor.LaneSpacing,
@@ -147,6 +163,15 @@ namespace RollingPanda
             if (greenPouch != null) Destroy(greenPouch);
         }
 
+        public BambooChute SweptChute(Vector3 from,Vector3 to,out bool front)
+        {
+            foreach(var section in sections)
+            {
+                var chute=section.Chute;
+                if(chute.gameObject.activeInHierarchy && ChuteRules.Sweep(from.x,from.z,to.x,to.z,chute.Centre,chute.Entrance,out front))return chute;
+            }
+            front=false;return null;
+        }
         public void ResetTrack()
         {
             origin = 0; nextIndex = sections.Length;
@@ -177,3 +202,5 @@ namespace RollingPanda
         }
     }
 }
+
+

@@ -12,6 +12,8 @@ namespace RollingPanda
         [SerializeField] bool enableEndless = false;
         Material hurdleMaterial, beamMaterial, gemMaterial;
 
+        public void ConfigureEndless() { enableGameLoop=true; enableEndless=true; }
+
         void Awake()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -103,7 +105,7 @@ namespace RollingPanda
                 var material = kind == 0 ? bandMaterial : kind == 1 ? hurdleMaterial : beamMaterial;
                 var obstacle = MakeCube(kind == 0 ? "Dodge block" : kind == 1 ? "Jump hurdle" : "Slide beam",
                     new Vector3(lane * RunnerMotor.LaneSpacing, y, z), new Vector3(2.2f, height, 1.2f), material, true);
-                obstacle.AddComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Slide under purple beams";
+                obstacle.AddComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Roll under lanterns";
                 int safeLane = lane == 1 ? 0 : lane + 1;
                 foreach (float offset in new[] { -12f, -8f, -4f, 4f, 8f })
                 {
@@ -151,7 +153,7 @@ namespace RollingPanda
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
             GUI.Box(new Rect(12f, 12f, 430f, 122f), "Rolling Panda — movement checkpoint");
             GUI.Label(new Rect(24f, 40f, 410f, 25f), "A / D or arrows: lanes    Space / W / Up: jump");
-            GUI.Label(new Rect(24f, 65f, 410f, 25f), "S / Down: slide    P / Esc: pause    R: restart");
+            GUI.Label(new Rect(24f, 65f, 410f, 25f), "S / Down: roll    P / Esc: pause    R: restart");
             string state = runner.Finished ? "Track complete — press R to restart" : runner.Paused ? "Paused — press P to continue" : runner.Sliding ? "Sliding" : "Running — click Game view for keyboard input";
             GUI.Label(new Rect(24f, 94f, 410f, 25f), state);
             GUI.matrix = previousMatrix;
@@ -169,3 +171,4 @@ namespace RollingPanda
         }
     }
 }
+

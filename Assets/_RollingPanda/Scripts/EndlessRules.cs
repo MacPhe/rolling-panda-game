@@ -7,8 +7,8 @@ namespace RollingPanda
         public const int SectionCount = 8;
         public const float SectionLength = 96f;
         public const float OriginStep = 960f;
-        public const float MaximumSpeed = 32f;
-        public static float Speed(double distance) => (float)Math.Min(MaximumSpeed, 15.0 + Math.Max(0.0, distance) / 150.0);
+        public const float MaximumSpeed = 40f;
+        public static float Speed(double distance) => (float)Math.Min(MaximumSpeed, 17.5 + Math.Max(0.0, distance) / 150.0);
         public static double Start(long index) => index * (double)SectionLength - 48.0;
         public static int RowCount(long section) => 2;
         public static float RowOffset(long section, int row) => 24 + row * 48;
@@ -22,8 +22,8 @@ namespace RollingPanda
         {
             if (section == 0 || row >= RowCount(section)) return 0;
             double distance = Start(section) + RowOffset(section, row);
-            if (distance < 150) return 1;
-            if (distance < 300) return (section + row) % 2 == 0 ? 2 : 1;
+            if (distance < 300) return 1;
+
             return 2;
         }
         public static int SafeLane(long section, int row)
@@ -40,7 +40,16 @@ namespace RollingPanda
             if (Pattern(section, row) % 2 != 0) primary = -safe - primary;
             return slot == 0 ? primary : -primary - SafeLane(section, row);
         }
-        public static int ObstacleKind(long section, int row, int slot) => (Pattern(section, row) + slot * (1 + (int)(section % 2))) % 3;
+        public static int ObstacleKind(long section, int row, int slot) => KindAt(
+            Start(section) + RowOffset(section, row), Pattern(section, row), slot, 1 + (int)(section % 2));
+        public static int IntermediateKind(long section, int row) => KindAt(
+            Start(section) + 48 + row * 48, Pattern(section, row), 0, 1);
+        public static int KindAt(double distance, int pattern, int slot, int stride)
+        {
+            if (distance < 800) return 1; // Small jump rocks only.
+            if (distance < 1500) return 1 + (pattern + slot) % 2; // Add slide lanterns.
+            return (pattern + slot * stride) % 3; // Add large dodge rocks.
+        }
         public static int GemObstacleSlot(long section, int row)
         {
             if (Start(section) + RowOffset(section, row) <= 300 || (section + row) % 3 == 0) return -1;
@@ -70,3 +79,5 @@ namespace RollingPanda
         }
     }
 }
+
+
