@@ -9,6 +9,7 @@ namespace RollingPanda
     public sealed class StartMenu : MonoBehaviour
     {
         Transform sleeper;
+        AudioSource menuMusic;
         ShopPandaPreview shopPreview;
         Camera view;
         RunEntryTransition entrance;
@@ -45,6 +46,14 @@ namespace RollingPanda
             entrance=new GameObject("Forest entrance hold").AddComponent<RunEntryTransition>();
             environment=Resources.Load<EnvironmentArt>("Presentation/EnvironmentArt");
             BuildWorld();
+            var audio=Resources.Load<MovementAudioArt>("Presentation/MovementAudioArt");
+            if(audio!=null && audio.MenuShrine!=null)
+            {
+                var musicObject=new GameObject("Soft looping shrine music");musicObject.transform.SetParent(transform,false);
+                menuMusic=musicObject.AddComponent<AudioSource>();menuMusic.playOnAwake=false;menuMusic.spatialBlend=0;menuMusic.loop=true;menuMusic.volume=0;menuMusic.clip=audio.MenuShrine;
+                musicObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=1800;
+                menuMusic.Play();
+            }
         }
         IEnumerator Start()
         {
@@ -77,6 +86,7 @@ namespace RollingPanda
         Rect Row(int i) => new Rect(Left, Top + 80 + i * 58, PanelWidth, 50);
         void Update()
         {
+            if(menuMusic!=null)menuMusic.volume=Mathf.MoveTowards(menuMusic.volume,loading ? 0 : .28f,Time.unscaledDeltaTime*.4f);
             Layout();
             if(shopPreview!=null)
             {
@@ -420,6 +430,7 @@ namespace RollingPanda
             var emission=ps.emission;emission.rateOverTime=5;var shape=ps.shape;shape.shapeType=ParticleSystemShapeType.Box;shape.scale=new Vector3(7,.2f,3);
             var pm=new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));materials.Add(pm);pm.SetColor("_BaseColor",new Color(1,.7f,.8f));ps.GetComponent<ParticleSystemRenderer>().sharedMaterial=pm;
         }
+        void OnDisable(){if(menuMusic!=null)menuMusic.Stop();}
         void OnDestroy()
         {
             foreach(var m in materials) Destroy(m);

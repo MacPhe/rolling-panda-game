@@ -35,7 +35,7 @@ namespace RollingPanda
         void Apply()
         {
             float distance=(float)(runner.DistanceTravelled%6000);
-            float mist=Rise(distance,800,1500)*(1-Rise(distance,2300,3000));
+            float mist=MistAt(runner.DistanceTravelled);
             float dark=Rise(distance,1800,3400)*(1-Rise(distance,4800,6000));
             float dusk=Rise(distance,1600,2400)*(1-Rise(distance,2700,3400));
             Color fog=Color.Lerp(new Color(.54f,.7f,.66f),new Color(.1f,.16f,.24f),dark);
@@ -73,6 +73,11 @@ namespace RollingPanda
                 if(selected[i]!=null) lamps[i].transform.position=selected[i].position;
                 lamps[i].intensity=selected[i]==null ? 0 : dark*2.3f*(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(35,65,Mathf.Sqrt(nearest[i]))));
             }
+        }
+        public static float MistAt(double travelled)
+        {
+            float distance=(float)(travelled%6000);
+            return Rise(distance,800,1500)*(1-Rise(distance,2300,3000));
         }
         static float Rise(float value,float start,float end) => Mathf.SmoothStep(0,1,Mathf.InverseLerp(start,end,value));
     }

@@ -1,21 +1,21 @@
-# Gameplay percussion and music auditions
+# Menu music, mist music and HUD
 
-Gameplay uses the user-approved Loop 5 - Complexity-4 from the imported Japanese Traditional Percussion pack. Its AudioSource volume is 0.15, with a 0.6-second fade-in. It is a single looping source at its original tempo and pitch. It starts after the entry hold, pauses/resumes with the run, stops on defeat/finish/entry hold, and restarts from the beginning after a run reset. A shield stopping forward movement does not stop the music. The existing master volume controls it along with effects.
+The menu and Shop loop the full BGM15shrine clip at 0.28 source volume with an 1800 Hz low-pass filter to soften its bright frequencies. This uses the approved softened audition direction, with Unity's runtime filter rather than uploading a processed vendor file. It fades in on menu entry and out when Roll/Play is selected. Disabling the menu stops its source before gameplay continues. The full source repeats; the short audition's artificial ending fade is not included.
 
-MovementAudioBuilder automatically adds the imported percussion reference to Resources/Presentation/MovementAudioArt. If it is missing, choose Rolling Panda > Refresh movement audio outside Play Mode and confirm the percussion pack is imported. The clip path is Assets/Japanese Traditional Percussion - One Adaptive Music Loop/Loop 5 - 127 BPM - 4_4/Loop 5 - Complexity-4.wav. Vendor audio is not uploaded by this change.
+Gameplay percussion remains at 0.15 source volume. BGM16jungle loops at up to 0.12 volume through a 1600 Hz low-pass filter. Its level follows the same shared MistAt calculation as the forest visuals: fades in over 800–1500m, stays present through 2300m, fades away by 3000m, and repeats in each 6000m atmosphere cycle. It stops outside mist once its volume reaches zero. Pause resumes both music sources at their paused positions; defeat, restart and return to menu stop/reset them. Shield blocking does not interrupt music. Existing Settings master volume controls all sources.
 
-Menu music and a secondary gameplay layer are not selected yet. Local audition files compare the existing Shrine track with a quieter two-stage 1800 Hz low-pass, Potion Store at a quieter level and 2200 Hz low-pass, and Jungle as a very muted 1600 Hz gameplay alternative. These processing choices soften the sound but do not change the underlying composition. They are auditions only, not claims that the tracks fit the requested atmosphere. The percussion audition uses the new 0.15 gain.
+Footsteps are reduced exactly 30%, from 0.09 to 0.063 source volume. Jump and slide levels are unchanged. Gem collection sounds remain the next upgrade.
 
-## Verification
+HUD: gem counters remain top left, with Score directly underneath in the same panel. Distance alone remains top right. Active powerup timers begin below the larger gem/score panel, and the top touch exclusion is extended to cover it. Existing gem +1 flights still target the same gem icons. The layout uses the existing portrait/landscape safe area scaling.
 
-Unity 6000.6.5f1 Windows/editor, iOS and editor-tool C# compilation passes. The source clip exists locally and is an approximately 7.56-second stereo WAV. Audio files and audition processing were inspected, but Unity playback and the loop seam still need listening in-game.
+The editor's MovementAudioBuilder populates Shrine, Jungle and Percussion references from local imported packs. If music is absent, use Rolling Panda > Refresh movement audio outside Play Mode. No vendor audio is uploaded by this change.
 
-## Check in Unity
+## Validation and Unity check
 
-1. StartMenu should remain without music while we choose a menu track.
-2. Roll/Play: percussion should fade in once control passes to the runner. Listen across several loop boundaries.
-3. Pause/resume: the beat should resume from its paused position without a duplicate source.
-4. Lose, restart and return to Main menu: confirm music stops/restarts correctly.
-5. Check Settings volume including mute. Compare the balance with footsteps and jump/slide effects.
+Runtime/editor, iOS-defined runtime and editor-tool C# compilation pass against Unity 6000.6.5f1. Existing pickup, powerup, gesture and endless runner regression checks pass. The full source clips exist locally. Unity visual/audio playback is not available in this environment.
 
-To tune the percussion, select Resources/Presentation/MovementAudioArt and adjust Percussion Volume; 0.15 is the starting value. Adventure has not been mixed in.
+1. Wait for compilation, open StartMenu and listen across the Shrine loop boundary (about 42 seconds). Enter and leave Shop: music should continue.
+2. Roll/Play: Shrine fades out and quiet percussion begins with gameplay. Confirm softer footsteps and normal jump/slide levels.
+3. Run through 800–1500m: Jungle should gradually join as mist increases. Continue beyond 3000m to hear it leave; it returns in the next mist cycle.
+4. Pause/resume, lose, restart and return to the menu; check no duplicated music or stale Jungle playback.
+5. Check Settings mute and portrait/landscape HUD. Score should sit under the gems, distance at top right, powerup timers below Score.

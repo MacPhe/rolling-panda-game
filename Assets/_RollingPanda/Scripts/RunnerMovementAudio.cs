@@ -6,7 +6,7 @@ namespace RollingPanda
     public sealed class RunnerMovementAudio : MonoBehaviour
     {
         RunnerMotor runner;CharacterController capsule;
-        MovementAudioArt clips;AudioSource steps,action,music;
+        MovementAudioArt clips;AudioSource steps,action,music,jungle;
         bool musicStarted,musicPaused;
         int index;double previousDistance;bool running;float stepClock;AudioClip jumpSwoosh;
         void Awake()
@@ -18,10 +18,14 @@ namespace RollingPanda
             footObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=2400;
             jumpSwoosh=BuildSwoosh();
             foreach(var source in new[]{steps,action}) {source.playOnAwake=false;source.spatialBlend=0;source.loop=false;}
-            steps.volume=.09f;action.volume=.25f;
+            steps.volume=.063f;action.volume=.25f;
             var musicObject=new GameObject("Quiet gameplay percussion");musicObject.transform.SetParent(transform,false);
             music=musicObject.AddComponent<AudioSource>();music.playOnAwake=false;music.spatialBlend=0;music.loop=true;music.volume=0;
             if(clips!=null)music.clip=clips.Percussion;
+            var jungleObject=new GameObject("Muted mist forest music");jungleObject.transform.SetParent(transform,false);
+            jungle=jungleObject.AddComponent<AudioSource>();jungle.playOnAwake=false;jungle.spatialBlend=0;jungle.loop=true;jungle.volume=0;
+            jungleObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=1600;
+            if(clips!=null)jungle.clip=clips.Jungle;
         }
         bool CanPlay => runner!=null && !RunEntryTransition.Active && !runner.Paused && !runner.Finished && (runner.Session==null || !runner.Session.Defeated);
         public void Jumped(){if(CanPlay){steps.Stop();stepClock=0;action.pitch=1;action.clip=jumpSwoosh;action.Play();}}
@@ -48,21 +52,34 @@ namespace RollingPanda
             if(!runner.Sliding && action.clip!=null && clips!=null && action.clip==clips.Slide) action.Stop();
             running=true;previousDistance=distance;
         }
+        void StopMusic()
+        {
+            if(music!=null){music.Stop();music.volume=0;}
+            if(jungle!=null){jungle.Stop();jungle.volume=0;}
+            musicStarted=false;musicPaused=false;
+        }
         void UpdateMusic(bool restarted)
         {
-            if(music==null || music.clip==null)return;
             if(restarted || RunEntryTransition.Active || runner.Finished || (runner.Session!=null && runner.Session.Defeated))
-            {
-                music.Stop();music.volume=0;musicStarted=false;musicPaused=false;return;
-            }
+            {StopMusic();return;}
             if(runner.Paused)
             {
-                if(musicStarted && !musicPaused){music.Pause();musicPaused=true;}
+                if(!musicPaused){if(music!=null)music.Pause();if(jungle!=null)jungle.Pause();musicPaused=true;}
                 return;
             }
-            if(!musicStarted){music.Play();musicStarted=true;}
-            else if(musicPaused){music.UnPause();musicPaused=false;}
-            music.volume=Mathf.MoveTowards(music.volume,Mathf.Clamp01(clips.PercussionVolume),Time.unscaledDeltaTime*.25f);
+            if(musicPaused){if(music!=null)music.UnPause();if(jungle!=null)jungle.UnPause();musicPaused=false;}
+            if(music!=null && music.clip!=null)
+            {
+                if(!musicStarted){music.Play();musicStarted=true;}
+                music.volume=Mathf.MoveTowards(music.volume,Mathf.Clamp01(clips.PercussionVolume),Time.unscaledDeltaTime*.25f);
+            }
+            if(jungle!=null && jungle.clip!=null)
+            {
+                float target=.12f*RunAtmosphere.MistAt(runner.DistanceTravelled);
+                if(target>0 && !jungle.isPlaying)jungle.Play();
+                jungle.volume=Mathf.MoveTowards(jungle.volume,target,Time.unscaledDeltaTime*.04f);
+                if(target<=0 && jungle.volume<=0)jungle.Stop();
+            }
         }
         static AudioClip BuildSwoosh()
         {
@@ -81,7 +98,7 @@ namespace RollingPanda
             clip.SetData(samples,0);return clip;
         }
         void OnDestroy(){if(jumpSwoosh!=null)Destroy(jumpSwoosh);}
-        void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();if(music!=null){music.Stop();music.volume=0;}musicStarted=false;musicPaused=false;running=false;}
+        void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();StopMusic();running=false;}
     }
 }
 

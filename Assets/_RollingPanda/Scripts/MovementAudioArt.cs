@@ -7,6 +7,8 @@ namespace RollingPanda
         public AudioClip Jump;
         public AudioClip Slide;
         public AudioClip Percussion;
+        public AudioClip MenuShrine;
+        public AudioClip Jungle;
         [Range(0,1)] public float PercussionVolume=.15f;
     }
 }

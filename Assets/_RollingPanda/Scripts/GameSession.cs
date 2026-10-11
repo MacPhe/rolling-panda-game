@@ -128,7 +128,7 @@ namespace RollingPanda
             float scale = UiScale(safe);
             float yFromTop = safe.yMax - screenPosition.y;
             if(CanReturn && MenuRect(safe.width/scale,safe.height/scale).Contains(new Vector2((screenPosition.x-safe.x)/scale,yFromTop/scale))) return true;
-            return yFromTop < 70f * scale || yFromTop > safe.height - 80f * scale;
+            return yFromTop < 90f * scale || yFromTop > safe.height - 80f * scale;
         }
         public void RegisterGem(BlueGem gem) { gems.Add(gem); gem.Initialize(this); }
         public void CollectGem(PickupKind kind,Vector3 worldPosition)
@@ -196,22 +196,12 @@ namespace RollingPanda
             Matrix4x4 previous=GUI.matrix;
             float width=safe.width/scale,height=safe.height/scale;
             GUI.matrix=Matrix4x4.TRS(new Vector3(safe.x,Screen.height-safe.yMax,0),Quaternion.identity,new Vector3(scale,scale,1));
-            GUI.Box(new Rect(10,10,204,44),"");
+            GUI.Box(new Rect(10,10,204,74),"");
             DrawCounter(18,pickups.Blue,0);DrawCounter(82,pickups.Red,1);DrawCounter(146,pickups.Pouches,2);
-            bool wide=width>=600;
-            float metricsWidth=wide ? 240 : 150;
+            GUI.Label(new Rect(18,49,188,28),$"Score {Score}",counterStyle);
             float right=width-12;
-            GUI.Box(new Rect(right-metricsWidth,10,metricsWidth,wide ? 44 : 56),"");
-            if(wide)
-            {
-                GUI.Label(new Rect(right-230,15,130,32),$"Score {Score}",metricStyle);
-                GUI.Label(new Rect(right-94,15,84,32),$"{(long)distance} m",metricStyle);
-            }
-            else
-            {
-                GUI.Label(new Rect(right-144,10,136,28),$"Score {Score}",metricStyle);
-                GUI.Label(new Rect(right-144,34,136,28),$"{(long)distance} m",metricStyle);
-            }
+            GUI.Box(new Rect(right-150,10,150,44),"");
+            GUI.Label(new Rect(right-142,15,134,32),$"{(long)distance} m",metricStyle);
             if(Defeated || runner.Paused || runner.Finished)
             {
                 float panelWidth=Mathf.Min(430,width-32),left=(width-panelWidth)/2,top=Mathf.Max(82,height*.31f);
@@ -231,12 +221,12 @@ namespace RollingPanda
             if(pauseClicked) runner.TogglePause();
 #endif
             if(magnet!=null && magnet.Remaining>0)
-                GUI.Label(new Rect(18,57,205,25),"Magnet  "+Mathf.CeilToInt(magnet.Remaining)+"s",counterStyle);
+                GUI.Label(new Rect(18,87,205,25),"Magnet  "+Mathf.CeilToInt(magnet.Remaining)+"s",counterStyle);
             if(shield!=null && shield.Remaining>0)
-                GUI.Label(new Rect(18,magnet!=null && magnet.Remaining>0 ? 82 : 57,205,25),"Shield  "+Mathf.CeilToInt(shield.Remaining)+"s",counterStyle);
+                GUI.Label(new Rect(18,magnet!=null && magnet.Remaining>0 ? 112 : 87,205,25),"Shield  "+Mathf.CeilToInt(shield.Remaining)+"s",counterStyle);
             if(specials!=null)
             {
-                float y=57+(magnet!=null && magnet.Remaining>0 ? 25 : 0)+(shield!=null && shield.Remaining>0 ? 25 : 0);
+                float y=87+(magnet!=null && magnet.Remaining>0 ? 25 : 0)+(shield!=null && shield.Remaining>0 ? 25 : 0);
                 if(specials.SpeedRemaining>0) {GUI.Label(new Rect(18,y,240,25),(specials.SpeedKind==SpecialKind.Speed ? "Boost 50m/s  " : "Time 10m/s  ")+specials.SpeedRemaining.ToString("0.0")+"s",counterStyle);y+=25;}
                 if(specials.BatteryRemaining>0) GUI.Label(new Rect(18,y,240,25),"High jumps  "+Mathf.CeilToInt(specials.BatteryRemaining)+"s",counterStyle);
             }
@@ -273,6 +263,7 @@ namespace RollingPanda
         }
     }
 }
+
 
 
 

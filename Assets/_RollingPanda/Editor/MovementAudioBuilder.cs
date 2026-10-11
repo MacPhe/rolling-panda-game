@@ -18,13 +18,15 @@ namespace RollingPanda
             var first=AssetDatabase.LoadAssetAtPath<AudioClip>(Source+"Rocky_ground/Rocky_ground_step0.wav");
             if(first==null) return;
             var art=AssetDatabase.LoadAssetAtPath<MovementAudioArt>(Path);
-            if(!refresh && art!=null && art.Steps!=null && art.Steps.Length==8 && art.Jump!=null && art.Slide!=null && art.Percussion!=null) return;
+            if(!refresh && art!=null && art.Steps!=null && art.Steps.Length==8 && art.Jump!=null && art.Slide!=null && art.Percussion!=null && art.MenuShrine!=null && art.Jungle!=null) return;
             if(art==null) {System.IO.Directory.CreateDirectory("Assets/_RollingPanda/Resources/Presentation");AssetDatabase.Refresh();art=ScriptableObject.CreateInstance<MovementAudioArt>();AssetDatabase.CreateAsset(art,Path);}
             art.Steps=new AudioClip[8];
             for(int i=0;i<8;i++) art.Steps[i]=AssetDatabase.LoadAssetAtPath<AudioClip>(Source+"Rocky_ground/Rocky_ground_step"+i+".wav");
             art.Jump=AssetDatabase.LoadAssetAtPath<AudioClip>(Source+"Rocky_ground/Rocky_ground_jump0.wav");
             art.Slide=AssetDatabase.LoadAssetAtPath<AudioClip>(Source+"Sliding_on_ground0.wav");
             art.Percussion=AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Japanese Traditional Percussion - One Adaptive Music Loop/Loop 5 - 127 BPM - 4_4/Loop 5 - Complexity-4.wav");
+            art.MenuShrine=AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Action RPG Music 1.6/BGM15shrine.wav");
+            art.Jungle=AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Action RPG Music 1.6/BGM16jungle.wav");
             EditorUtility.SetDirty(art);AssetDatabase.SaveAssets();
         }
     }
