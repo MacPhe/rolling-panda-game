@@ -27,7 +27,6 @@ namespace RollingPanda
             var charcoal=FurMaterials(furShader,new Color(.19f,.195f,.21f),true);
             headCoat=ivory;
             foreach(var m in headCoat){m.SetFloat("_FacePattern",1);m.SetFloat("_BandOn",1);m.SetColor("_PatchColour",new Color(.19f,.195f,.21f));}
-            var cream=FurMaterials(furShader,new Color(.97f,.93f,.84f),false);
             var nose=Solid(lit,new Color(.045f,.035f,.03f),.3f);
             var eyeWhite=Solid(lit,new Color(1,.975f,.9f),.55f);
             var iris=Solid(lit,new Color(.31f,.13f,.035f),.7f);
@@ -39,15 +38,23 @@ namespace RollingPanda
             {
                 Coat("Rounded ear",new Vector3(side*.48f,1.96f,-.01f),new Vector3(.17f,.18f,.12f),charcoal,false);
                 Plain("Inner ear",new Vector3(side*.48f,1.96f,.1f),new Vector3(.095f,.11f,.022f),nose);
-                Plain("Eye white",new Vector3(side*.235f,1.57f,.455f),new Vector3(.105f,.13f,.03f),eyeWhite);
-                Plain("Amber iris",new Vector3(side*.222f,1.565f,.482f),new Vector3(.073f,.091f,.022f),iris);
-                Plain("Pupil",new Vector3(side*.22f,1.565f,.502f),new Vector3(.044f,.063f,.014f),pupil);
+                Plain("Eye white",new Vector3(side*.235f,1.57f,.455f),new Vector3(.108f,.114f,.03f),eyeWhite);
+                Plain("Amber iris",new Vector3(side*.222f,1.565f,.482f),new Vector3(.083f,.093f,.019f),iris);
+                Plain("Pupil",new Vector3(side*.22f,1.565f,.502f),new Vector3(.052f,.066f,.012f),pupil);
                 Plain("Eye catchlight",new Vector3(side*.22f-.022f,1.6f,.516f),new Vector3(.017f,.021f,.008f),sparkle);
-                Coat("Soft muzzle",new Vector3(side*.105f,1.285f,.436f),new Vector3(.19f,.145f,.15f),cream,false);
-                Coat("Friendly brow",new Vector3(side*.23f,1.742f,.401f),new Vector3(.13f,.028f,.025f),charcoal,false).localRotation=Quaternion.Euler(0,0,side*12);
+                var lidPoints=new List<Vector3>();
+                for(int i=0;i<=20;i++)
+                {
+                    float angle=Mathf.Lerp(.08f,Mathf.PI-.08f,i/20f);
+                    lidPoints.Add(new Vector3(side*.235f+Mathf.Cos(angle)*.108f,1.57f+Mathf.Sin(angle)*.106f,.463f));
+                }
+                Tube("Soft upper eyelid",lidPoints,.013f,charcoal[0]);
+                Coat("Friendly brow",new Vector3(side*.23f,1.742f,.401f),new Vector3(.115f,.022f,.021f),charcoal,false).localRotation=Quaternion.Euler(0,0,side*5);
             }
-            var nosePart=Plain("Rounded triangular nose",new Vector3(0,1.36f,.585f),new Vector3(.115f,.074f,.055f),nose);
-            nosePart.localRotation=Quaternion.Euler(0,0,180);
+            var nosePart=Plain("Rounded triangular nose",new Vector3(0,1.36f,FaceDepth(0,1.36f)+.012f),new Vector3(.1f,.063f,.045f),nose);
+            var noseMesh=nosePart.GetComponent<MeshFilter>().sharedMesh;var noseVertices=noseMesh.vertices;
+            for(int i=0;i<noseVertices.Length;i++)noseVertices[i].x*=1+.28f*(noseVertices[i].y/.063f);
+            noseMesh.vertices=noseVertices;noseMesh.RecalculateNormals();noseMesh.RecalculateBounds();
             Smile(nose);
             accessory=new GameObject("Removable red headband").transform;accessory.SetParent(subject,false);
             var red=Solid(lit,new Color(.73f,.045f,.025f),.15f);
@@ -64,7 +71,7 @@ namespace RollingPanda
             var set=new Material[7];for(int i=0;i<set.Length;i++)
             {
                 var m=new Material(shader);m.SetColor("_BaseColor",colour);m.SetTexture("_BaseMap",fibres);
-                m.SetTextureScale("_BaseMap",new Vector2(5,3));m.SetFloat("_Layer",i/7f);m.SetFloat("_FurLength",.014f);
+                m.SetTextureScale("_BaseMap",new Vector2(4,2));m.SetFloat("_Layer",i/7f);m.SetFloat("_FurLength",.014f);
                 materials.Add(m);set[i]=m;if(recolour)darkCoat.Add(m);
             }
             return set;
@@ -89,36 +96,76 @@ namespace RollingPanda
         }
         Mesh Ellipsoid(Vector3 radii,bool cheeks)
         {
-            const int columns=40,rows=28;var vertices=new List<Vector3>();var normals=new List<Vector3>();var uv=new List<Vector2>();var indices=new List<int>();
+            int columns=cheeks ? 80 : 40,rows=cheeks ? 56 : 28;var vertices=new List<Vector3>();var normals=new List<Vector3>();var uv=new List<Vector2>();var indices=new List<int>();
             for(int y=0;y<=rows;y++)for(int x=0;x<=columns;x++)
             {
                 float v=y/(float)rows,u=x/(float)columns,theta=v*Mathf.PI,a=u*Mathf.PI*2;
                 var n=new Vector3(Mathf.Sin(theta)*Mathf.Cos(a),Mathf.Cos(theta),Mathf.Sin(theta)*Mathf.Sin(a));
                 float fullness=cheeks ? 1+.1f*Mathf.Exp(-Mathf.Pow((n.y+.32f)/.42f,2)) : 1;
-                vertices.Add(Vector3.Scale(n,new Vector3(radii.x*fullness,radii.y,radii.z)));
+                var point=Vector3.Scale(n,new Vector3(radii.x*fullness,radii.y,radii.z));
+                if(cheeks && n.z>0)point.z+=MuzzleBlend(point.x,point.y)*Mathf.SmoothStep(0,1,Mathf.InverseLerp(.2f,.8f,n.z));
+                vertices.Add(point);
                 normals.Add(new Vector3(n.x/(radii.x*fullness),n.y/radii.y,n.z/radii.z).normalized);uv.Add(new Vector2(u,v));
                 if(y<rows && x<columns){int p=y*(columns+1)+x;indices.AddRange(new[]{p,p+1,p+columns+1,p+1,p+columns+2,p+columns+1});}
             }
-            var mesh=new Mesh{name=cheeks ? "Continuous soft cheek silhouette" : "Smooth study surface"};mesh.SetVertices(vertices);mesh.SetNormals(normals);mesh.SetUVs(0,uv);mesh.SetTriangles(indices,0);mesh.RecalculateBounds();meshes.Add(mesh);return mesh;
+            var mesh=new Mesh{name=cheeks ? "Continuous soft cheek silhouette" : "Smooth study surface"};mesh.SetVertices(vertices);mesh.SetNormals(normals);mesh.SetUVs(0,uv);mesh.SetTriangles(indices,0);
+            if(cheeks)
+            {
+                mesh.RecalculateNormals();var smoothed=mesh.normals;
+                for(int row=0;row<=rows;row++){int lo=row*(columns+1),hi=lo+columns;var average=(smoothed[lo]+smoothed[hi]).normalized;smoothed[lo]=smoothed[hi]=average;}
+                for(int col=0;col<=columns;col++){smoothed[col]=Vector3.up;smoothed[rows*(columns+1)+col]=Vector3.down;}
+                mesh.normals=smoothed;
+            }
+            mesh.RecalculateBounds();meshes.Add(mesh);return mesh;
+        }
+        static float MuzzleBlend(float x,float localY)
+        {
+            return .15f*Mathf.Exp(-Mathf.Pow(x/.28f,2)-Mathf.Pow((localY+.2f)/.18f,2));
+        }
+        static float FaceDepth(float x,float worldY)
+        {
+            float y=(worldY-1.5f)/.54f,fullness=1+.1f*Mathf.Exp(-Mathf.Pow((y+.32f)/.42f,2));
+            float z=Mathf.Sqrt(Mathf.Max(0,1-y*y-Mathf.Pow(x/(.63f*fullness),2)));
+            return .47f*z+MuzzleBlend(x,worldY-1.5f)*Mathf.SmoothStep(0,1,Mathf.InverseLerp(.2f,.8f,z));
         }
         void Smile(Material material)
         {
-            Plain("Nose to smile",new Vector3(0,1.28f,.59f),new Vector3(.008f,.045f,.009f),material);
-            for(int i=0;i<15;i++)
+            var smile=new List<Vector3>();
+            for(int i=0;i<=32;i++)
             {
-                float x=Mathf.Lerp(-.15f,.15f,i/14f),y=1.235f+.045f*Mathf.Pow(x/.15f,2);
-                Plain("Smile detail",new Vector3(x,y,.582f-.015f*Mathf.Abs(x/.15f)),new Vector3(.018f,.008f,.009f),material);
+                float x=Mathf.Lerp(-.18f,.18f,i/32f),y=1.245f+.045f*Mathf.Pow(x/.18f,2);
+                smile.Add(new Vector3(x,y,FaceDepth(x,y)+.007f));
             }
+            Tube("Continuous gentle smile",smile,.006f,material);
+            var stem=new List<Vector3>();for(int i=0;i<=8;i++){float y=Mathf.Lerp(1.31f,1.245f,i/8f);stem.Add(new Vector3(0,y,FaceDepth(0,y)+.007f));}
+            Tube("Nose to smile crease",stem,.005f,material);
+        }
+        void Tube(string name,List<Vector3> points,float radius,Material material)
+        {
+            const int sides=8;var vertices=new List<Vector3>();var normals=new List<Vector3>();var indices=new List<int>();
+            for(int i=0;i<points.Count;i++)
+            {
+                var tangent=(points[Mathf.Min(i+1,points.Count-1)]-points[Mathf.Max(i-1,0)]).normalized;
+                var side=Vector3.Cross(tangent,Vector3.forward).normalized;var other=Vector3.Cross(tangent,side).normalized;
+                for(int k=0;k<sides;k++)
+                {
+                    float a=k*Mathf.PI*2/sides;var normal=side*Mathf.Cos(a)+other*Mathf.Sin(a);vertices.Add(points[i]+normal*radius);normals.Add(normal);
+                    if(i<points.Count-1){int p=i*sides+k,n=i*sides+(k+1)%sides;indices.AddRange(new[]{p,n,p+sides,n,n+sides,p+sides});}
+                }
+            }
+            var mesh=new Mesh{name=name};mesh.SetVertices(vertices);mesh.SetNormals(normals);mesh.SetTriangles(indices,0);mesh.RecalculateBounds();meshes.Add(mesh);
+            var obj=new GameObject(name);obj.transform.SetParent(subject,false);obj.AddComponent<MeshFilter>().sharedMesh=mesh;obj.AddComponent<MeshRenderer>().sharedMaterial=material;
         }
         void Band(Material material)
         {
-            const int count=64;var vertices=new List<Vector3>();var uv=new List<Vector2>();var indices=new List<int>();
-            for(int i=0;i<=count;i++)for(int row=0;row<2;row++)
+            const int count=64,bandRows=6;var vertices=new List<Vector3>();var uv=new List<Vector2>();var indices=new List<int>();
+            for(int i=0;i<=count;i++)for(int row=0;row<=bandRows;row++)
             {
-                float a=i*Mathf.PI*2/count,y=1.79f+row*.095f;
+                float a=i*Mathf.PI*2/count,y=1.79f+row/(float)bandRows*.095f;
                 float radius=Mathf.Sqrt(1-Mathf.Pow((y-1.5f)/.54f,2));
-                vertices.Add(new Vector3(Mathf.Cos(a)*(.63f*radius+.012f),y,Mathf.Sin(a)*(.47f*radius+.012f)));uv.Add(new Vector2(i/(float)count,row));
-                if(i<count && row==0){int p=i*2;indices.AddRange(new[]{p,p+1,p+2,p+1,p+3,p+2});}
+                float fold=.004f*Mathf.Sin(row/(float)bandRows*Mathf.PI*4+a*.65f);
+                vertices.Add(new Vector3(Mathf.Cos(a)*(.63f*radius+.015f+fold),y,Mathf.Sin(a)*(.47f*radius+.015f+fold)));uv.Add(new Vector2(i/(float)count,row/(float)bandRows));
+                if(i<count && row<bandRows){int p=i*(bandRows+1)+row,next=p+bandRows+1;indices.AddRange(new[]{p,p+1,next,p+1,next+1,next});}
             }
             var mesh=new Mesh{name="Separate curved cloth band"};mesh.SetVertices(vertices);mesh.SetUVs(0,uv);mesh.SetTriangles(indices,0);mesh.RecalculateNormals();meshes.Add(mesh);
             accessory.gameObject.AddComponent<MeshFilter>().sharedMesh=mesh;accessory.gameObject.AddComponent<MeshRenderer>().sharedMaterial=material;
@@ -133,9 +180,9 @@ namespace RollingPanda
             const int size=256;var data=new Color[size*size];var rng=new System.Random(741);
             for(int i=0;i<data.Length;i++) data[i]=new Color(.97f,0,0,1);
             // Fine, curving upright fibres. Density stores strand height for shell clipping.
-            for(int i=0;i<4200;i++)
+            for(int i=0;i<3000;i++)
             {
-                int x=rng.Next(size),y=rng.Next(size),length=rng.Next(5,18);float height=.25f+(float)rng.NextDouble()*.75f;
+                int x=rng.Next(size),y=rng.Next(size),length=rng.Next(10,26);float height=.25f+(float)rng.NextDouble()*.75f;
                 for(int k=0;k<length;k++)
                 {
                     int px=(x+(int)(Mathf.Sin(k*.15f)*1.5f))%size,py=(y+k)%size;int p=py*size+px;

@@ -25,3 +25,7 @@ C# compilation passed for runtime/editor and iOS defines. HLSL compilation, actu
 ## Screenshot review refinement
 
 The first screenshots exposed a key light facing away from the front, near-black coat losing detail, raised eye-patch discs, a smile buried in the muzzle and shell fibres intersecting the band. The study now corrects the existing key at runtime (so its saved scene need not be recreated), raises charcoal to a readable dark grey, paints softly edged eye patches directly on the head shader, reduces eye protrusion, moves the smile in front of the muzzle, and masks outer fur layers beneath the headband. Patch colours follow the coat palette. These changes require another Unity visual review; shader compilation is not verified by the C# checks.
+
+## Integrated face pass
+
+Removes the two separate muzzle ellipsoids and builds a broad smooth muzzle bulge directly into the head surface. The head has denser topology and recalculated smooth normals with a shared seam. The nose is narrower at its base, and a continuous tube mesh follows the actual curved muzzle for the smile/philtrum. Larger irises and reduced eye-white height aim to soften the startled expression; upper eyelid rims and flatter brows add definition. The band now has six vertical subdivisions with shallow folds. Fibre strokes are longer and tiled less densely to reduce the grainy appearance. This remains a procedural study awaiting front/three-quarter/side visual review, not a finished character or validated match to the concept.
