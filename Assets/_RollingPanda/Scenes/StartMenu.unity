@@ -433,7 +433,6 @@ GameObject:
   m_Component:
   - component: {fileID: 900000002}
   - component: {fileID: 900000003}
-  - component: {fileID: 900000004}
   m_Layer: 0
   m_Name: Start Menu — press Play
   m_TagString: Untagged
