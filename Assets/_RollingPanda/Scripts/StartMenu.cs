@@ -9,6 +9,7 @@ namespace RollingPanda
     public sealed class StartMenu : MonoBehaviour
     {
         Transform sleeper;
+        ShopPandaPreview shopPreview;
         Camera view;
         RunEntryTransition entrance;
         RunnerCamera chaseCamera;
@@ -59,6 +60,13 @@ namespace RollingPanda
             yield return null;
             if(worldArt.Panda!=null) worldArt.Panda.gameObject.SetActive(false);
             ready=gameRunner!=null && worldArt.Panda!=null;
+            if(ready)
+            {
+                var display=new GameObject("Shop character preview");display.transform.SetParent(transform,false);
+                display.transform.localPosition=new Vector3(-4.3f,.1f,-4);
+                shopPreview=display.AddComponent<ShopPandaPreview>();shopPreview.Initialize(worldArt.Panda);
+                display.SetActive(false);
+            }
         }
         void Layout()
         {
@@ -70,12 +78,23 @@ namespace RollingPanda
         void Update()
         {
             Layout();
+            if(shopPreview!=null)
+            {
+                bool shopping=panel=="Shop" && !loading;
+                shopPreview.gameObject.SetActive(shopping);sleeper.gameObject.SetActive(!shopping);
+            }
             if (!loading) sleeper.localScale = new Vector3(1, 1 + Mathf.Sin(Time.unscaledTime * 1.5f) * .018f, 1);
             if (!loading)
             {
             view.orthographicSize = Screen.width > Screen.height ? 5.4f : 8.2f;
             view.transform.position = Screen.width > Screen.height ? new Vector3(2, 5.8f, -13) : new Vector3(0, 7.5f, -14);
             view.transform.LookAt(Screen.width > Screen.height ? new Vector3(-2.6f, 3, 0) : new Vector3(-4.5f, 1.5f, 0));
+                if(panel=="Shop")
+                {
+                    view.orthographicSize=Wide ? 2.6f : 3.8f;
+                    view.transform.position=new Vector3(-3.2f,2.5f,-12);
+                    view.transform.LookAt(Wide ? new Vector3(-2.8f,1.7f,-4) : new Vector3(-4.3f,.65f,-4));
+                }
             }
 #if !UNITY_EDITOR && !UNITY_STANDALONE
             var touch = Touchscreen.current;
@@ -93,7 +112,7 @@ namespace RollingPanda
         }
         int Hit(Vector2 p)
         {
-            for (int i=0; i<(panel=="" ? 4 : panel=="Settings" ? 3 : 1); i++)
+            for (int i=0; i<(panel=="" ? 4 : panel=="Settings" ? 3 : panel=="Shop" ? 4 : 1); i++)
                 if (Row(i).Contains(p)) return i;
             return -1;
         }
@@ -113,6 +132,13 @@ namespace RollingPanda
                 volume=Mathf.Clamp01(volume+(i==0 ? -.1f : .1f));
                 AudioListener.volume=volume;
                 PlayerPrefs.SetFloat("RollingPanda.Volume",volume); PlayerPrefs.Save();
+            }
+            else if(panel=="Shop")
+            {
+                if(i==0) shopPreview.Turn(-45);
+                else if(i==1) shopPreview.Turn(45);
+                else if(i==2) shopPreview.TogglePose();
+                else panel="";
             }
             else panel="";
         }
@@ -201,7 +227,7 @@ namespace RollingPanda
             }
             var previous=GUI.matrix;
             GUI.matrix=Matrix4x4.TRS(new Vector3(safe.x,Screen.height-safe.yMax,0),Quaternion.identity,new Vector3(Scale,Scale,1));
-            GUI.Box(new Rect(Left-12,Top-8,PanelWidth+24,panel=="" ? 328 : 290),"");
+            GUI.Box(new Rect(Left-12,Top-8,PanelWidth+24,panel=="" || panel=="Shop" ? 390 : 290),"");
             GUI.Label(new Rect(Left,Top,PanelWidth,52),panel=="" ? "Rolling Panda" : panel,title);
             if(panel=="")
             {
@@ -212,6 +238,13 @@ namespace RollingPanda
             {
                 GUI.Label(new Rect(Left,Top+50,PanelWidth,26),"Master volume  "+Mathf.RoundToInt(volume*100)+"%",text);
                 DrawButton(0,"Volume -");DrawButton(1,"Volume +");DrawButton(2,"Back");
+            }
+            else if(panel=="Shop")
+            {
+                GUI.Label(new Rect(Left,Top+50,PanelWidth,24),"Character preview",text);
+                DrawButton(0,"Turn left");DrawButton(1,"Turn right");
+                DrawButton(2,shopPreview==null ? "Pose" : shopPreview.PoseLabel);DrawButton(3,"Back");
+                GUI.Label(new Rect(Left,Top+318,PanelWidth,60),"Cosmetics coming later",text);
             }
             else
             {

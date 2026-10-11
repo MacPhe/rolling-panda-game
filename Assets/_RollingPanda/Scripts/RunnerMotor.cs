@@ -15,6 +15,7 @@ namespace RollingPanda
         const float StandingHeight = 2f;
         const float SlidingHeight = 0.9f;
         CharacterController controller;
+        RunnerMovementAudio movementAudio;
         Transform visual;
         Vector3 startPosition;
         float verticalSpeed, slideTime;
@@ -33,6 +34,7 @@ namespace RollingPanda
         public void Initialize(Transform playerVisual)
         {
             controller = GetComponent<CharacterController>();
+            movementAudio = gameObject.AddComponent<RunnerMovementAudio>();
             visual = playerVisual;
             startPosition = transform.position;
             RunnerInput.Reset();
@@ -68,12 +70,14 @@ namespace RollingPanda
             {
                 slideTime = 0f;
                 SetStanding(true);
+                movementAudio.Jumped();
                 verticalSpeed = Mathf.Sqrt(-2f * Gravity * (Session==null ? JumpHeight : Session.JumpHeight(JumpHeight)));
             }
             else if (commands.Slide && grounded && !Sliding)
             {
                 slideTime = SlideDuration;
                 SetStanding(false);
+                movementAudio.Slid();
             }
 
             verticalSpeed += Gravity * dt;

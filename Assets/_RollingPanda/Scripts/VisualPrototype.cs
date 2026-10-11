@@ -17,6 +17,7 @@ namespace RollingPanda
         Material ivory, ink, red, bamboo, leaves, stone, roof, gold;
 
         public Transform Panda => panda;
+        public float FootfallPhase => phase;
 
         void Start()
         {
