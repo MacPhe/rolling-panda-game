@@ -107,7 +107,7 @@ namespace RollingPanda
                 obstacle.transform.localPosition = new Vector3(lane * RunnerMotor.LaneSpacing, kind == 2 ? 1.35f + height / 2 : height / 2, z);
                 obstacle.transform.localScale = new Vector3(2.2f, height, 1.2f);
                 obstacle.GetComponent<Renderer>().sharedMaterial = kind == 0 ? red : kind == 1 ? gold : purple;
-                obstacle.GetComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Slide under purple beams";
+                obstacle.GetComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Roll under lanterns";
                 obstacle.SetActive(slot < count);
                 }
                 int safeLane = EndlessRules.SafeLane(index, row);
@@ -131,7 +131,7 @@ namespace RollingPanda
                     intermediateKind == 2 ? 1.35f + intermediateHeight / 2 : intermediateHeight / 2, 48 + row * 48);
                 intermediate.transform.localScale = new Vector3(2.2f, intermediateHeight, 1.2f);
                 intermediate.GetComponent<Renderer>().sharedMaterial = intermediateKind == 0 ? red : intermediateKind == 1 ? gold : purple;
-                intermediate.GetComponent<RunnerObstacle>().Instruction = intermediateKind == 0 ? "Dodge red blocks" : intermediateKind == 1 ? "Jump gold hurdles" : "Slide under purple beams";
+                intermediate.GetComponent<RunnerObstacle>().Instruction = intermediateKind == 0 ? "Dodge red blocks" : intermediateKind == 1 ? "Jump gold hurdles" : "Roll under lanterns";
                 intermediate.SetActive(EndlessRules.HasIntermediate(index, row));
             }
             int pouchSlot = PickupRules.PouchSlot(index);
@@ -177,4 +177,5 @@ namespace RollingPanda
         }
     }
 }
+
 

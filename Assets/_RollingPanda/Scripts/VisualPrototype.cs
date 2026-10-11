@@ -9,6 +9,10 @@ namespace RollingPanda
         readonly List<Material> materials = new List<Material>();
         RunnerMotor runner;
         Transform panda, headRig, leftArm, rightArm, leftFoot, rightFoot, tails;
+        [Tooltip("Turn off to compare the previous side-lunge animation. Presentation only.")]
+        public bool RollingMotion=true;
+        float rollTime,kickTime=1,kickDirection,laneSway,previousX;
+        int previousLane;
         float phase, airTime;
         bool wasAirborne;
         double previousDistance;
@@ -132,6 +136,82 @@ namespace RollingPanda
         }
 
         void LateUpdate()
+        {
+            if(!RollingMotion){LateUpdateLegacy();return;}
+            if(panda==null)return;
+            bool reset=runner.DistanceTravelled<previousDistance;
+            if(reset)
+            {
+                airTime=rollTime=phase=laneSway=0;kickTime=1;wasAirborne=false;
+                previousLane=runner.TargetLane;previousX=runner.transform.position.x;
+                panda.localPosition=Vector3.zero;panda.localRotation=Quaternion.identity;
+            }
+            previousDistance=runner.DistanceTravelled;
+            if(runner.Paused || runner.Finished || (runner.Session!=null && runner.Session.Defeated))return;
+            float dt=Time.deltaTime;if(dt<=0)return;
+            float blend=1-Mathf.Exp(-18*dt);
+            float lateral=Mathf.Clamp((runner.transform.position.x-previousX)/(12*dt),-1,1);
+            previousX=runner.transform.position.x;
+            laneSway=Mathf.Lerp(laneSway,lateral,1-Mathf.Exp(-12*dt));
+            if(runner.TargetLane!=previousLane)
+            {
+                kickDirection=Mathf.Sign(runner.TargetLane-previousLane);kickTime=0;previousLane=runner.TargetLane;
+            }
+            kickTime+=dt;
+            phase+=dt*Mathf.Lerp(12,18,Mathf.InverseLerp(17.5f,40,runner.CurrentSpeed));
+            bool airborne=!controller.isGrounded && !runner.Sliding;
+            if(airborne && !wasAirborne)airTime=0;
+            if(airborne)airTime+=dt;else airTime=0;
+            wasAirborne=airborne;
+            bool entry=RunEntryTransition.Revealing;
+            bool rolling=runner.Sliding && !entry;
+            rollTime=rolling ? rollTime+dt : 0;
+            float kick=!rolling && !airborne && !entry ? Mathf.Sin(Mathf.Clamp01(kickTime/.36f)*Mathf.PI) : 0;
+            float tuck=airborne ? Mathf.SmoothStep(0,1,Mathf.Clamp01(airTime/.12f))*(1-Mathf.SmoothStep(0,1,Mathf.Clamp01((airTime-.55f)/.17f))) : 0;
+            if(entry)tuck=Mathf.Sin(RunEntryTransition.RevealProgress*Mathf.PI);
+            if(rolling)tuck=1;
+            float gait=Mathf.Sin(phase),counter=Mathf.Sin(phase+Mathf.PI);
+            panda.localScale=rolling ? new Vector3(.64f,.5f,.55f) : new Vector3(1,1-.22f*tuck,1);
+            Quaternion rotation;Vector3 position;
+            if(rolling)
+            {
+                // Rotate the tucked visual around its centre inside the existing low capsule.
+                rotation=Quaternion.Euler(rollTime*720,0,-laneSway*5);
+                var pivot=new Vector3(0,.9f,0);
+                position=new Vector3(0,.44f,0)-rotation*Vector3.Scale(pivot,panda.localScale);
+            }
+            else if(entry || airborne)
+            {
+                float t=Mathf.Clamp01(airTime/.72f);
+                float turn=entry ? 360*RunEntryTransition.RevealProgress : 360*t*t*(3-2*t);
+                rotation=Quaternion.Euler(turn,0,0);
+                var pivot=new Vector3(0,entry ? .9f : 1,0);
+                position=pivot-rotation*Vector3.Scale(pivot,panda.localScale);
+            }
+            else
+            {
+                rotation=Quaternion.Euler(7+Mathf.Sin(phase*2)*2,laneSway*6+kickDirection*kick*12,gait*3-laneSway*9-kickDirection*kick*6);
+                position=new Vector3(laneSway*.025f,.025f+Mathf.Cos(phase*2)*.025f+kick*.025f,0);
+            }
+            panda.localRotation=rolling || airborne || entry ? rotation : Quaternion.Slerp(panda.localRotation,rotation,blend);
+            panda.localPosition=rolling || airborne || entry ? position : Vector3.Lerp(panda.localPosition,position,blend);
+            // Collapse the roll immediately, so the first rotation does not swing an upright head below ground.
+            float poseBlend=rolling ? 1 : blend;
+            headRig.localPosition=Vector3.Lerp(headRig.localPosition,new Vector3(0,1.6f-(rolling ? .45f : .28f)*tuck,.12f*tuck),poseBlend);
+            headRig.localRotation=Quaternion.Slerp(headRig.localRotation,Quaternion.Euler((rolling ? 45 : 32)*tuck,-laneSway*3,0),poseBlend);
+            leftArm.localPosition=Vector3.Lerp(leftArm.localPosition,new Vector3(-.48f+.18f*tuck,1.15f-.12f*tuck,.15f*tuck),poseBlend);
+            rightArm.localPosition=Vector3.Lerp(rightArm.localPosition,new Vector3(.48f-.18f*tuck,1.15f-.12f*tuck,.15f*tuck),poseBlend);
+            leftFoot.localPosition=Vector3.Lerp(leftFoot.localPosition,new Vector3(-.23f,.49f+.25f*tuck,.18f*tuck),poseBlend);
+            rightFoot.localPosition=Vector3.Lerp(rightFoot.localPosition,new Vector3(.23f,.49f+.25f*tuck,.18f*tuck),poseBlend);
+            float leftKick=kickDirection<0 ? kick : 0,rightKick=kickDirection>0 ? kick : 0;
+            Pose(leftArm,Mathf.Lerp(Mathf.Lerp(gait*38,-145,tuck),-65,kick),-kickDirection*kick*12,-12-kick*12,poseBlend);
+            Pose(rightArm,Mathf.Lerp(Mathf.Lerp(counter*38,-145,tuck),-65,kick),-kickDirection*kick*12,12+kick*12,poseBlend);
+            Pose(leftFoot,Mathf.Lerp(Mathf.Lerp(counter*36,-150,tuck),-25,leftKick),0,Mathf.Lerp(-3,-85,leftKick),poseBlend);
+            Pose(rightFoot,Mathf.Lerp(Mathf.Lerp(gait*36,-150,tuck),-25,rightKick),0,Mathf.Lerp(3,85,rightKick),poseBlend);
+            if(tails!=null)tails.localRotation=Quaternion.Euler(Mathf.Sin(phase-.5f)*16,Mathf.Sin(phase*.5f)*8,Mathf.Sin(phase*.7f)*12);
+        }
+
+        void LateUpdateLegacy()
         {
             if (panda == null) return;
             // A restart can happen while airborne or in the low kick pose.

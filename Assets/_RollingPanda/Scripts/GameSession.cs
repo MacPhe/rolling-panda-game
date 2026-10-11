@@ -210,7 +210,7 @@ namespace RollingPanda
                 GUI.Box(new Rect(left,top,panelWidth,150),"");
                 string state=Defeated ? "Run ended" : runner.Finished ? "Course complete!" : "Paused";
                 GUI.Label(new Rect(left+12,top+10,panelWidth-24,30),state,panelStyle);
-                GUI.Label(new Rect(left+12,top+44,panelWidth-24,38),Defeated ? DefeatReason : "Swipe left/right: lanes   Up: jump   Down: slide",panelStyle);
+                GUI.Label(new Rect(left+12,top+44,panelWidth-24,38),Defeated ? DefeatReason : "Swipe left/right: lanes   Up: jump   Down: roll",panelStyle);
                 bool menuClicked=GUI.Button(MenuRect(width,height),"Main menu",buttonStyle);
 #if UNITY_EDITOR || UNITY_STANDALONE
                 if(menuClicked) ReturnToMenu();

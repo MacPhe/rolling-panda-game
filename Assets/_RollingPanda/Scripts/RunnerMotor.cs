@@ -27,6 +27,7 @@ namespace RollingPanda
         public double DistanceTravelled { get; private set; }
         public float CurrentSpeed => Session==null ? (Endless ? EndlessRules.Speed(DistanceTravelled) : ForwardSpeed) : Session.AdjustSpeed(Endless ? EndlessRules.Speed(DistanceTravelled) : ForwardSpeed);
 
+        public int TargetLane => lane;
         public bool Paused => paused;
         public bool Finished => !Endless && transform.position.z >= FinishDistance;
         public bool Sliding => slideTime > 0f;
