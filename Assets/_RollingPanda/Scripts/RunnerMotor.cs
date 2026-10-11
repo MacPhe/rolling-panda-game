@@ -149,6 +149,7 @@ namespace RollingPanda
             transform.position = startPosition;
             controller.enabled = true;
             chute=null;
+            if(movementAudio!=null)movementAudio.ResetVocals();
             lane = 0;
             verticalSpeed = 0f;
             slideTime = 0f;

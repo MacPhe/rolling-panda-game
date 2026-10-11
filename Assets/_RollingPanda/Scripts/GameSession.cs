@@ -170,6 +170,7 @@ namespace RollingPanda
             distance = System.Math.Max(distance, runner.DistanceTravelled);
             Defeated = true;
             DefeatReason = reason;
+            var audio=runner.GetComponent<RunnerMovementAudio>();if(audio!=null)audio.ReactToDefeat();
             SaveBest();
         }
 

@@ -8,6 +8,7 @@ namespace RollingPanda
         RunnerMotor runner;CharacterController capsule;
         MovementAudioArt clips;AudioSource steps,action,music,jungle;
         bool musicStarted,musicPaused;
+        AudioSource voice;AudioClip[] voiceClips;float voiceCooldown;bool defeatVoice;
         readonly AudioSource[] pickupSources=new AudioSource[3];
         readonly AudioClip[] pickupClips=new AudioClip[3];
         int index;double previousDistance;bool running;float stepClock;AudioClip jumpSwoosh;
@@ -19,6 +20,10 @@ namespace RollingPanda
             steps=footObject.AddComponent<AudioSource>();action=gameObject.AddComponent<AudioSource>();
             footObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=2400;
             jumpSwoosh=BuildSwoosh();
+            var voiceObject=new GameObject("Quiet panda placeholder voice");voiceObject.transform.SetParent(transform,false);
+            voice=voiceObject.AddComponent<AudioSource>();voice.playOnAwake=false;voice.loop=false;voice.spatialBlend=0;voice.volume=.22f;
+            voiceObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=2000;
+            voiceClips=new[]{BuildPandaVoice(0),BuildPandaVoice(1),BuildPandaVoice(2)};
             for(int i=0;i<3;i++)
             {
                 var pickupObject=new GameObject("Soft "+((PickupKind)i)+" pickup sound");pickupObject.transform.SetParent(transform,false);
@@ -64,13 +69,47 @@ namespace RollingPanda
             if(rounded)return .14*attack*(System.Math.Sin(phase)*System.Math.Exp(-t/.09)+.12*System.Math.Sin(phase*2)*System.Math.Exp(-t/.045));
             return .17*attack*(System.Math.Sin(phase)*System.Math.Exp(-t/.065)+.16*System.Math.Sin(phase*2.03)*System.Math.Exp(-t/.03)+.035*System.Math.Sin(phase*3.1)*System.Math.Exp(-t/.018));
         }
-        public void Jumped(){if(CanPlay){steps.Stop();stepClock=0;action.pitch=1;action.clip=jumpSwoosh;action.Play();}}
-        public void Slid(){if(CanPlay && clips!=null && clips.Slide!=null){steps.Stop();stepClock=0;action.pitch=1;action.clip=clips.Slide;action.Play();}}
+        public void Jumped(){if(CanPlay){steps.Stop();stepClock=0;action.pitch=1;action.clip=jumpSwoosh;action.Play();ActionVoice(0);}}
+        public void Slid()
+        {
+            if(!CanPlay)return;ActionVoice(1);
+            if(clips!=null && clips.Slide!=null){steps.Stop();stepClock=0;action.pitch=1;action.clip=clips.Slide;action.Play();}
+        }
+        void ActionVoice(int kind)
+        {
+            if(voice==null || voiceCooldown>0 || voice.isPlaying)return;
+            defeatVoice=false;voice.clip=voiceClips[kind];voice.pitch=1;voice.Play();voiceCooldown=1.2f;
+        }
+        public void ReactToDefeat()
+        {
+            if(voice==null)return;
+            voice.Stop();voice.clip=voiceClips[2];voice.pitch=1;voice.Play();defeatVoice=true;
+        }
+        public void ResetVocals(){if(voice!=null)voice.Stop();voiceCooldown=0;defeatVoice=false;}
+        static AudioClip BuildPandaVoice(int kind)
+        {
+            // Original synthetic cartoon grunts; deliberately temporary, not recorded panda calls.
+            const int rate=22050;float duration=kind==2 ? .38f : .24f;var samples=new float[Mathf.CeilToInt(rate*duration)];
+            var random=new System.Random(910+kind);double phase=0,breath=0;
+            for(int i=0;i<samples.Length;i++)
+            {
+                double t=i/(double)rate,u=t/duration;
+                double frequency=kind==0 ? 230+45*System.Math.Sin(u*System.Math.PI) : kind==1 ? 180+30*System.Math.Sin(u*System.Math.PI) : 250-115*u;
+                phase+=2*System.Math.PI*frequency/rate;
+                breath+=.12*((random.NextDouble()*2-1)-breath);
+                double envelope=(1-System.Math.Exp(-t/.014))*System.Math.Pow(System.Math.Max(0,1-u),1.6);
+                samples[i]=(float)(envelope*(.35*(.65*System.Math.Sin(phase)+.22*System.Math.Sin(2*phase)+.1*System.Math.Sin(3*phase))+.035*breath));
+            }
+            var clip=AudioClip.Create(kind==0 ? "Panda hop effort placeholder" : kind==1 ? "Panda roll effort placeholder" : "Panda surprised oof placeholder",samples.Length,1,rate,false);clip.SetData(samples,0);return clip;
+        }
         void LateUpdate()
         {
             if(runner==null) return;
             double distance=runner.DistanceTravelled;bool active=CanPlay;
             UpdateMusic(distance<previousDistance);
+            if(active)voiceCooldown=Mathf.Max(0,voiceCooldown-Time.deltaTime);
+            if(distance<previousDistance || runner.Paused || RunEntryTransition.Active)ResetVocals();
+            else if(!active && !defeatVoice && voice!=null)voice.Stop();
             if(!active || distance<previousDistance)
             {
                 StopPickups();if(running){steps.Stop();action.Stop();}running=false;stepClock=0;previousDistance=distance;return;
@@ -133,8 +172,8 @@ namespace RollingPanda
             var clip=AudioClip.Create("Panda flip air swoosh",samples.Length,1,rate,false);
             clip.SetData(samples,0);return clip;
         }
-        void OnDestroy(){if(jumpSwoosh!=null)Destroy(jumpSwoosh);foreach(var clip in pickupClips)if(clip!=null)Destroy(clip);}
-        void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();StopMusic();StopPickups();running=false;}
+        void OnDestroy(){if(jumpSwoosh!=null)Destroy(jumpSwoosh);foreach(var clip in pickupClips)if(clip!=null)Destroy(clip);if(voiceClips!=null)foreach(var clip in voiceClips)if(clip!=null)Destroy(clip);}
+        void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();StopMusic();StopPickups();ResetVocals();running=false;}
     }
 }
 
