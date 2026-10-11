@@ -52,9 +52,9 @@ namespace RollingPanda
             {
                 float t=i/(float)(samples.Length-1);
                 float noise=(float)random.NextDouble()*2-1;
-                smooth=Mathf.Lerp(smooth,noise,Mathf.Lerp(.08f,.45f,Mathf.Sin(t*Mathf.PI)));
+                smooth=Mathf.Lerp(smooth,noise,Mathf.Lerp(.04f,.16f,Mathf.Sin(t*Mathf.PI)));
                 float envelope=Mathf.Sin(Mathf.PI*t);envelope*=envelope;
-                samples[i]=smooth*envelope*.65f;
+                samples[i]=smooth*envelope*.30f;
             }
             var clip=AudioClip.Create("Panda flip air swoosh",samples.Length,1,rate,false);
             clip.SetData(samples,0);return clip;
@@ -63,4 +63,6 @@ namespace RollingPanda
         void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();running=false;}
     }
 }
+
+
 
