@@ -6,7 +6,8 @@ namespace RollingPanda
     public sealed class RunnerMovementAudio : MonoBehaviour
     {
         RunnerMotor runner;CharacterController capsule;
-        MovementAudioArt clips;AudioSource steps,action;
+        MovementAudioArt clips;AudioSource steps,action,music;
+        bool musicStarted,musicPaused;
         int index;double previousDistance;bool running;float stepClock;AudioClip jumpSwoosh;
         void Awake()
         {
@@ -18,6 +19,9 @@ namespace RollingPanda
             jumpSwoosh=BuildSwoosh();
             foreach(var source in new[]{steps,action}) {source.playOnAwake=false;source.spatialBlend=0;source.loop=false;}
             steps.volume=.09f;action.volume=.25f;
+            var musicObject=new GameObject("Quiet gameplay percussion");musicObject.transform.SetParent(transform,false);
+            music=musicObject.AddComponent<AudioSource>();music.playOnAwake=false;music.spatialBlend=0;music.loop=true;music.volume=0;
+            if(clips!=null)music.clip=clips.Percussion;
         }
         bool CanPlay => runner!=null && !RunEntryTransition.Active && !runner.Paused && !runner.Finished && (runner.Session==null || !runner.Session.Defeated);
         public void Jumped(){if(CanPlay){steps.Stop();stepClock=0;action.pitch=1;action.clip=jumpSwoosh;action.Play();}}
@@ -26,6 +30,7 @@ namespace RollingPanda
         {
             if(runner==null) return;
             double distance=runner.DistanceTravelled;bool active=CanPlay;
+            UpdateMusic(distance<previousDistance);
             if(!active || distance<previousDistance)
             {
                 if(running){steps.Stop();action.Stop();}running=false;stepClock=0;previousDistance=distance;return;
@@ -42,6 +47,22 @@ namespace RollingPanda
             }
             if(!runner.Sliding && action.clip!=null && clips!=null && action.clip==clips.Slide) action.Stop();
             running=true;previousDistance=distance;
+        }
+        void UpdateMusic(bool restarted)
+        {
+            if(music==null || music.clip==null)return;
+            if(restarted || RunEntryTransition.Active || runner.Finished || (runner.Session!=null && runner.Session.Defeated))
+            {
+                music.Stop();music.volume=0;musicStarted=false;musicPaused=false;return;
+            }
+            if(runner.Paused)
+            {
+                if(musicStarted && !musicPaused){music.Pause();musicPaused=true;}
+                return;
+            }
+            if(!musicStarted){music.Play();musicStarted=true;}
+            else if(musicPaused){music.UnPause();musicPaused=false;}
+            music.volume=Mathf.MoveTowards(music.volume,Mathf.Clamp01(clips.PercussionVolume),Time.unscaledDeltaTime*.25f);
         }
         static AudioClip BuildSwoosh()
         {
@@ -60,9 +81,8 @@ namespace RollingPanda
             clip.SetData(samples,0);return clip;
         }
         void OnDestroy(){if(jumpSwoosh!=null)Destroy(jumpSwoosh);}
-        void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();running=false;}
+        void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();if(music!=null){music.Stop();music.volume=0;}musicStarted=false;musicPaused=false;running=false;}
     }
 }
-
 
 
