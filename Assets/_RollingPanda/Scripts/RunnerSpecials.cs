@@ -176,6 +176,7 @@ namespace RollingPanda
                 case SpecialKind.Battery:BatteryRemaining=SpecialRules.BatteryDuration;break;
                 case SpecialKind.Gold:session.CollectGold(slot.Root.position);break;
                 case SpecialKind.Bomb:
+                    if(runner.InChute)break;
                     explosion.transform.position=slot.Root.position;explosion.Play(false);explosion.Emit(64);session.Fail("Bomb hit!");break;
             }
         }

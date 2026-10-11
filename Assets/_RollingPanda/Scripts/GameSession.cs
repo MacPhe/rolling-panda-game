@@ -166,7 +166,7 @@ namespace RollingPanda
 
         public void Fail(string reason)
         {
-            if (Defeated) return;
+            if (Defeated || runner!=null && runner.InChute) return;
             distance = System.Math.Max(distance, runner.DistanceTravelled);
             Defeated = true;
             DefeatReason = reason;
@@ -232,6 +232,7 @@ namespace RollingPanda
                 if(specials.SpeedRemaining>0) {GUI.Label(new Rect(18,y,240,25),(specials.SpeedKind==SpecialKind.Speed ? "Boost 50m/s  " : "Time 10m/s  ")+specials.SpeedRemaining.ToString("0.0")+"s",counterStyle);y+=25;}
                 if(specials.BatteryRemaining>0) GUI.Label(new Rect(18,y,240,25),"High jumps  "+Mathf.CeilToInt(specials.BatteryRemaining)+"s",counterStyle);
             }
+            if(runner.InChute)GUI.Label(new Rect(width*.5f-110,height-105,220,28),"Bamboo chute: protected",panelStyle);
             DrawToasts(safe,scale);
             GUI.matrix=previous;
         }
@@ -265,6 +266,7 @@ namespace RollingPanda
         }
     }
 }
+
 
 
 

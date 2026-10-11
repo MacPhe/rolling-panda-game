@@ -12,6 +12,7 @@ namespace RollingPanda
             public GameObject[] Intermediates = new GameObject[2];
             public BlueGem[] Gems = new BlueGem[10];
             public BlueGem Pouch;
+            public BambooChute Chute;
         }
         readonly Section[] sections = new Section[EndlessRules.SectionCount];
         RunnerMotor runner;
@@ -78,6 +79,8 @@ namespace RollingPanda
             section.Pouch = pouchObject.AddComponent<BlueGem>();
             section.Pouch.Kind = PickupKind.Pouch;
             session.RegisterGem(section.Pouch);
+            var chuteObject=new GameObject("Bamboo rolling chute");chuteObject.transform.SetParent(section.Root,false);
+            section.Chute=chuteObject.AddComponent<BambooChute>();section.Chute.Build();chuteObject.SetActive(false);
             return section;
         }
 
@@ -134,6 +137,19 @@ namespace RollingPanda
                 intermediate.GetComponent<RunnerObstacle>().Instruction = intermediateKind == 0 ? "Dodge red blocks" : intermediateKind == 1 ? "Jump gold hurdles" : "Roll under lanterns";
                 intermediate.SetActive(EndlessRules.HasIntermediate(index, row));
             }
+            bool chute=ChuteRules.Spawn(index);section.Chute.gameObject.SetActive(chute);
+            if(chute)
+            {
+                section.Chute.Lane=EndlessRules.SafeLane(index,0);
+                section.Chute.transform.localPosition=new Vector3(section.Chute.Lane*RunnerMotor.LaneSpacing,0,ChuteRules.StartOffset);
+                section.Intermediates[0].SetActive(false);
+                // Reserve the tunnel and a clear exit, retaining other lanes as optional routes.
+                section.Obstacles[2].SetActive(false);section.Obstacles[3].SetActive(false);
+                for(int g=0;g<5;g++)
+                {
+                    var gem=section.Gems[5+g];gem.transform.localPosition=new Vector3(section.Chute.Lane*RunnerMotor.LaneSpacing,.45f,44+g*5);gem.gameObject.SetActive(true);
+                }
+            }
             int pouchSlot = PickupRules.PouchSlot(index);
             section.Pouch.transform.localPosition = new Vector3(EndlessRules.ObstacleLane(index, 0, pouchSlot) * RunnerMotor.LaneSpacing,
                 PickupRules.PouchHeight(index), EndlessRules.RowOffset(index, 0));
@@ -147,6 +163,15 @@ namespace RollingPanda
             if (greenPouch != null) Destroy(greenPouch);
         }
 
+        public BambooChute SweptChute(Vector3 from,Vector3 to,out bool front)
+        {
+            foreach(var section in sections)
+            {
+                var chute=section.Chute;
+                if(chute.gameObject.activeInHierarchy && ChuteRules.Sweep(from.x,from.z,to.x,to.z,chute.Centre,chute.Entrance,out front))return chute;
+            }
+            front=false;return null;
+        }
         public void ResetTrack()
         {
             origin = 0; nextIndex = sections.Length;

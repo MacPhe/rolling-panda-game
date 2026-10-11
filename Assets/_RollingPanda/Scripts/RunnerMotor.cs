@@ -21,6 +21,8 @@ namespace RollingPanda
         float verticalSpeed, slideTime;
         int lane;
         bool paused;
+        BambooChute chute;
+        public bool InChute=>chute!=null;
         readonly Collider[] overlapResults = new Collider[16];
         public GameSession Session { get; set; }
         public bool Endless { get; set; }
@@ -51,10 +53,11 @@ namespace RollingPanda
             if (paused || Finished || (Session != null && Session.Defeated)) return;
 
             float dt = Time.deltaTime;
-            lane = Mathf.Clamp(lane + commands.LaneStep, -1, 1);
+            if(!InChute)lane = Mathf.Clamp(lane + commands.LaneStep, -1, 1);
             bool grounded = controller.isGrounded;
             if (grounded && verticalSpeed < 0f) verticalSpeed = -2f;
 
+            if(InChute)slideTime=Mathf.Max(slideTime,.1f);
             if (slideTime > 0f)
             {
                 slideTime = Mathf.Max(0f, slideTime - dt);
@@ -67,7 +70,7 @@ namespace RollingPanda
                 }
             }
 
-            if (commands.Jump && grounded && CanStand())
+            if (!InChute && commands.Jump && grounded && CanStand())
             {
                 slideTime = 0f;
                 SetStanding(true);
@@ -84,9 +87,20 @@ namespace RollingPanda
             verticalSpeed += Gravity * dt;
             float targetX = Mathf.MoveTowards(transform.position.x, lane * LaneSpacing, LateralSpeed * dt);
             float forward = Endless ? CurrentSpeed * dt : Mathf.Min(ForwardSpeed * dt, FinishDistance - transform.position.z);
+            if(!InChute && Session!=null && Session.Track!=null)
+            {
+                bool front;var candidate=Session.Track.SweptChute(transform.position,new Vector3(targetX,transform.position.y,transform.position.z+forward),out front);
+                if(candidate!=null)
+                {
+                    if(!front || !Sliding){Session.Fail("Roll into the bamboo chute entrance!");return;}
+                    chute=candidate;lane=chute.Lane;slideTime=Mathf.Max(slideTime,.1f);SetStanding(false);targetX=chute.Centre;
+                }
+            }
+            if(InChute){lane=chute.Lane;targetX=chute.Centre;}
             float beforeZ = transform.position.z;
             var flags = controller.Move(new Vector3(targetX - transform.position.x, verticalSpeed * dt, forward));
             DistanceTravelled += Mathf.Max(0f, transform.position.z - beforeZ);
+            if(InChute && ChuteRules.HasExited(transform.position.z,chute.Exit))chute=null;
             if ((flags & CollisionFlags.Above) != 0 && verticalSpeed > 0f) verticalSpeed = 0f;
             if (Session != null && !Session.Defeated)
             {
@@ -108,6 +122,7 @@ namespace RollingPanda
 
         bool CanStand()
         {
+            if(InChute)return false;
             Vector3 center = transform.position + Vector3.up * (StandingHeight * 0.5f);
             float halfSegment = StandingHeight * 0.5f - controller.radius;
             int count = Physics.OverlapCapsuleNonAlloc(center + Vector3.up * halfSegment,
@@ -133,6 +148,7 @@ namespace RollingPanda
             controller.enabled = false;
             transform.position = startPosition;
             controller.enabled = true;
+            chute=null;
             lane = 0;
             verticalSpeed = 0f;
             slideTime = 0f;
