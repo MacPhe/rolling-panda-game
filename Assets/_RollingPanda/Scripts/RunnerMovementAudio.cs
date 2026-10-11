@@ -1,42 +1,65 @@
 using UnityEngine;
 namespace RollingPanda
 {
-    // Uses the visual gait for footsteps, actual motor events for jump/slide.
+    // Soft, bounded footstep cadence; jump/slide sounds follow accepted motor actions.
     [DefaultExecutionOrder(100)]
     public sealed class RunnerMovementAudio : MonoBehaviour
     {
-        RunnerMotor runner;CharacterController capsule;VisualPrototype art;
+        RunnerMotor runner;CharacterController capsule;
         MovementAudioArt clips;AudioSource steps,action;
-        int previousBeat,index;double previousDistance;bool running;
+        int index;double previousDistance;bool running;float stepClock;AudioClip jumpSwoosh;
         void Awake()
         {
             runner=GetComponent<RunnerMotor>();capsule=GetComponent<CharacterController>();
-            art=GetComponentInParent<VisualPrototype>();clips=Resources.Load<MovementAudioArt>("Presentation/MovementAudioArt");
-            steps=gameObject.AddComponent<AudioSource>();action=gameObject.AddComponent<AudioSource>();
+            clips=Resources.Load<MovementAudioArt>("Presentation/MovementAudioArt");
+            var footObject=new GameObject("Soft footsteps");footObject.transform.SetParent(transform,false);
+            steps=footObject.AddComponent<AudioSource>();action=gameObject.AddComponent<AudioSource>();
+            footObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=2400;
+            jumpSwoosh=BuildSwoosh();
             foreach(var source in new[]{steps,action}) {source.playOnAwake=false;source.spatialBlend=0;source.loop=false;}
-            steps.volume=.28f;action.volume=.32f;
+            steps.volume=.09f;action.volume=.25f;
         }
         bool CanPlay => runner!=null && !RunEntryTransition.Active && !runner.Paused && !runner.Finished && (runner.Session==null || !runner.Session.Defeated);
-        public void Jumped(){if(CanPlay && clips!=null && clips.Jump!=null){steps.Stop();action.pitch=1;action.clip=clips.Jump;action.Play();}}
-        public void Slid(){if(CanPlay && clips!=null && clips.Slide!=null){steps.Stop();action.pitch=1;action.clip=clips.Slide;action.Play();}}
+        public void Jumped(){if(CanPlay){steps.Stop();stepClock=0;action.pitch=1;action.clip=jumpSwoosh;action.Play();}}
+        public void Slid(){if(CanPlay && clips!=null && clips.Slide!=null){steps.Stop();stepClock=0;action.pitch=1;action.clip=clips.Slide;action.Play();}}
         void LateUpdate()
         {
             if(runner==null) return;
-            int beat=art==null ? 0 : Mathf.FloorToInt((art.FootfallPhase+Mathf.PI*.5f)/Mathf.PI);
             double distance=runner.DistanceTravelled;bool active=CanPlay;
             if(!active || distance<previousDistance)
             {
-                if(running){steps.Stop();action.Stop();}running=false;previousBeat=beat;previousDistance=distance;return;
+                if(running){steps.Stop();action.Stop();}running=false;stepClock=0;previousDistance=distance;return;
             }
             bool moved=distance-previousDistance>.001;
-            if(running && moved && !runner.Sliding && capsule.isGrounded && beat!=previousBeat && clips!=null && clips.Steps!=null && clips.Steps.Length>0)
+            bool stepping=moved && !runner.Sliding && capsule.isGrounded;
+            float interval=Mathf.Lerp(.32f,.26f,Mathf.InverseLerp(17.5f,40,runner.CurrentSpeed));
+            if(stepping && running) stepClock+=Time.deltaTime; else stepClock=0;
+            if(stepClock>=interval && clips!=null && clips.Steps!=null && clips.Steps.Length>0)
             {
-                var clip=clips.Steps[index%clips.Steps.Length];steps.pitch=.97f+(index%5)*.015f;index++;
+                stepClock%=interval;
+                var clip=clips.Steps[index%Mathf.Min(2,clips.Steps.Length)];steps.pitch=1;index++;
                 if(clip!=null) steps.PlayOneShot(clip);
             }
             if(!runner.Sliding && action.clip!=null && clips!=null && action.clip==clips.Slide) action.Stop();
-            running=true;previousBeat=beat;previousDistance=distance;
+            running=true;previousDistance=distance;
         }
+        static AudioClip BuildSwoosh()
+        {
+            // A short filtered-air sweep, generated once; no new sound-pack dependency.
+            const int rate=22050;var samples=new float[(int)(rate*.55f)];
+            var random=new System.Random(811);float smooth=0;
+            for(int i=0;i<samples.Length;i++)
+            {
+                float t=i/(float)(samples.Length-1);
+                float noise=(float)random.NextDouble()*2-1;
+                smooth=Mathf.Lerp(smooth,noise,Mathf.Lerp(.08f,.45f,Mathf.Sin(t*Mathf.PI)));
+                float envelope=Mathf.Sin(Mathf.PI*t);envelope*=envelope;
+                samples[i]=smooth*envelope*.65f;
+            }
+            var clip=AudioClip.Create("Panda flip air swoosh",samples.Length,1,rate,false);
+            clip.SetData(samples,0);return clip;
+        }
+        void OnDestroy(){if(jumpSwoosh!=null)Destroy(jumpSwoosh);}
         void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();running=false;}
     }
 }
