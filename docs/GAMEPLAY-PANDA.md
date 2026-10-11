@@ -4,7 +4,7 @@ The runner now uses the approved look-study head: continuous rounded cheeks and 
 
 The existing body proportions, animation pivots, run/front-flip/side-kick slide, collision controller and movement rules are retained. Cosmetic attachment points are provided for head, back, waist and wrists. The isolated look-study scene remains available for comparison. Its studio lighting and buttons are not applied to gameplay.
 
-This step replaces the gameplay and shop character. The sleeping menu panda remains the earlier separate model; its handoff still uses the existing fade. Full-body sculpting and a matching sleeping character remain later visual work.
+The sleeping menu panda now shares the approved head and short body fur, with closed eyelids while resting and open eyes as it wakes. The existing tree pose, breathing and fall/roll/fade handoff remain. Full-body sculpting remains later visual work. Thin head features no longer cast isolated shadows onto the road.
 
 ## Validation
 
@@ -13,7 +13,8 @@ Windows/editor runtime, iOS runtime and editor tools compile against Unity 6000.
 ## Unity check
 
 1. Open StartMenu and enter Play Mode. In Shop, rotate the panda and check the face, band and fur while it sways.
-2. Roll/Play and check the fade into the new runner.
+2. Check the sleeping head and closed eyes in the tree. Roll/Play and check the eyes open, fall/roll and fade into the runner.
 3. Run, change lanes, jump/front-flip and slide/side-kick. Check that the head follows the poses and no old face remains visible.
 4. Restart and repeat. Check daytime and nighttime readability and the Console.
 5. Keep the isolated look-study scene for comparison. Mobile frame rate and fur cost still need device testing.
+

@@ -155,10 +155,12 @@ namespace RollingPanda
             var parts = new List<Transform>();
             var poses = new List<Vector3>();
             foreach (Transform child in sleeper) { parts.Add(child); poses.Add(child.localPosition); }
+            bool eyesOpened=false;
             float elapsed = 0;
             while (elapsed < 2.7f)
             {
                 elapsed += Time.unscaledDeltaTime;
+                if(!eyesOpened && elapsed>.22f){sleeper.GetComponent<PandaLookStudy>().SetSleeping(false);eyesOpened=true;}
                 float wake = Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/.45f));
                 float fall = Mathf.Clamp01((elapsed-.45f)/.85f);
                 float roll = Mathf.Clamp01((elapsed-1.3f)/1.4f);
@@ -389,19 +391,13 @@ namespace RollingPanda
             sleeper=new GameObject("Sleeping red-headband panda").transform;sleeper.SetParent(transform,false);sleeper.localPosition=new Vector3(-4.5f,3.3f,-.3f);sleeper.localRotation=Quaternion.Euler(0,-12,-8);
             Shape(PrimitiveType.Sphere,"Body",sleeper,new Vector3(.4f,0,0),new Vector3(1.7f,.95f,1),ivory);
             Shape(PrimitiveType.Sphere,"Shoulders",sleeper,new Vector3(-.1f,0,0),new Vector3(.65f,.9f,1.02f),black);
-            Shape(PrimitiveType.Sphere,"Head",sleeper,new Vector3(-.7f,.12f,-.17f),new Vector3(1.05f,.95f,.95f),ivory);
             for(int i=0;i<2;i++)
-            {
-                float x=-1.04f+i*.64f;
-                Shape(PrimitiveType.Sphere,"Ear",sleeper,new Vector3(x,.56f,-.1f),Vector3.one*.34f,black);
-                Shape(PrimitiveType.Sphere,"Eye patch",sleeper,new Vector3(-.94f+i*.43f,.19f,-.58f),new Vector3(.29f,.32f,.09f),black);
-                Shape(PrimitiveType.Sphere,"Closed eyelid",sleeper,new Vector3(-.94f+i*.43f,.19f,-.635f),new Vector3(.18f,.025f,.025f),ivory);
                 Shape(PrimitiveType.Sphere,"Relaxed paw",sleeper,new Vector3(-.28f+i*1.25f,-.36f,-.42f),new Vector3(.48f,.65f,.5f),black);
-            }
-            Shape(PrimitiveType.Sphere,"Nose",sleeper,new Vector3(-.72f,-.05f,-.66f),new Vector3(.19f,.12f,.1f),black);
-            Shape(PrimitiveType.Sphere,"Red headband",sleeper,new Vector3(-.7f,.38f,-.18f),new Vector3(1.07f,.1f,.94f),red);
-            Shape(PrimitiveType.Cube,"Headband ribbon",sleeper,new Vector3(-1.35f,.33f,-.1f),new Vector3(.5f,.1f,.08f),red);
-            sleeper.gameObject.AddComponent<PandaAppearance>().Initialize(null,null,null,true);
+            var sleepingHead=new GameObject("Head").transform;sleepingHead.SetParent(sleeper,false);
+            sleepingHead.localPosition=new Vector3(-.7f,.12f,-.17f);
+            sleepingHead.localRotation=Quaternion.Euler(0,180,0);
+            var sleepingLook=sleeper.gameObject.AddComponent<PandaLookStudy>();
+            if(sleepingLook.BuildGameplay(sleepingHead,sleeper))sleepingLook.SetSleeping(true);
             var bag=Mat("Loot pouch",new Color(.43f,.24f,.1f));
             BuildPouch(new Vector3(-5,.05f,-2),bag,bark);
 
@@ -431,6 +427,7 @@ namespace RollingPanda
         }
     }
 }
+
 
 
 

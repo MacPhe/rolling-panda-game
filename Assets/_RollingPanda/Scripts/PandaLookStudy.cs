@@ -27,8 +27,8 @@ namespace RollingPanda
             foreach(var renderer in originals)
             {
                 if(renderer.transform.IsChildOf(head))continue;
-                string n=renderer.name;if(n!="Pear shaped body" && n!="Shoulders" && n!="Left arm" && n!="Right arm" && n!="Left leg" && n!="Right leg" && n!="Tail")continue;
-                var coat=n=="Pear shaped body" || n=="Tail" ? pale : dark;renderer.sharedMaterial=coat[0];
+                string n=renderer.name;if(n!="Pear shaped body" && n!="Shoulders" && n!="Left arm" && n!="Right arm" && n!="Left leg" && n!="Right leg" && n!="Tail" && n!="Body" && n!="Relaxed paw")continue;
+                var coat=n=="Pear shaped body" || n=="Body" || n=="Tail" ? pale : dark;renderer.sharedMaterial=coat[0];
                 // Three outer layers for the smaller body surfaces; no extra colliders.
                 var filter=renderer.GetComponent<MeshFilter>();if(filter==null)continue;
                 for(int i=2;i<coat.Length;i+=2)
@@ -38,7 +38,33 @@ namespace RollingPanda
                     var surface=shell.AddComponent<MeshRenderer>();surface.sharedMaterial=coat[i];surface.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
                 }
             }
+            // Thin facial pieces must not cast disconnected shadows on the road.
+            foreach(var surface in subject.GetComponentsInChildren<MeshRenderer>(true))
+                surface.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
             enabled=false;return true;
+        }
+        public void SetSleeping(bool sleeping)
+        {
+            if(!built)return;
+            foreach(Transform part in subject)
+            {
+                string n=part.name;
+                if(n=="Eye white" || n=="Amber iris" || n=="Pupil" || n=="Eye catchlight" || n=="Soft upper eyelid")part.gameObject.SetActive(!sleeping);
+                if(n=="Sleeping eyelid")part.gameObject.SetActive(sleeping);
+            }
+            if(!sleeping || subject.Find("Sleeping eyelid")!=null)return;
+            foreach(float side in new[]{-1f,1f})
+            {
+                var points=new List<Vector3>();
+                for(int i=0;i<=20;i++)
+                {
+                    float x=side*.235f+Mathf.Lerp(-.085f,.085f,i/20f);
+                    float y=1.57f-.028f*Mathf.Sin(i/20f*Mathf.PI);
+                    points.Add(new Vector3(x,y,FaceDepth(x,y)+.009f));
+                }
+                Tube("Sleeping eyelid",points,.009f,Solid(Shader.Find("Universal Render Pipeline/Lit"),new Color(.94f,.9f,.8f),.15f));
+            }
+            foreach(var surface in subject.GetComponentsInChildren<MeshRenderer>(true))surface.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
         }
         void Build(bool forGameplay)
         {
@@ -256,4 +282,5 @@ namespace RollingPanda
         void OnDestroy(){foreach(var m in meshes)if(m!=null)Destroy(m);foreach(var m in materials)if(m!=null)Destroy(m);if(fibres!=null)Destroy(fibres);}
     }
 }
+
 
