@@ -8,6 +8,8 @@ namespace RollingPanda
         RunnerMotor runner;CharacterController capsule;
         MovementAudioArt clips;AudioSource steps,action,music,jungle;
         bool musicStarted,musicPaused;
+        readonly AudioSource[] pickupSources=new AudioSource[3];
+        readonly AudioClip[] pickupClips=new AudioClip[3];
         int index;double previousDistance;bool running;float stepClock;AudioClip jumpSwoosh;
         void Awake()
         {
@@ -17,6 +19,12 @@ namespace RollingPanda
             steps=footObject.AddComponent<AudioSource>();action=gameObject.AddComponent<AudioSource>();
             footObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=2400;
             jumpSwoosh=BuildSwoosh();
+            for(int i=0;i<3;i++)
+            {
+                var pickupObject=new GameObject("Soft "+((PickupKind)i)+" pickup sound");pickupObject.transform.SetParent(transform,false);
+                var source=pickupObject.AddComponent<AudioSource>();source.playOnAwake=false;source.spatialBlend=0;source.loop=false;source.volume=.65f;
+                pickupClips[i]=BuildPickupSound(i);source.clip=pickupClips[i];pickupSources[i]=source;
+            }
             foreach(var source in new[]{steps,action}) {source.playOnAwake=false;source.spatialBlend=0;source.loop=false;}
             steps.volume=.063f;action.volume=.25f;
             var musicObject=new GameObject("Quiet gameplay percussion");musicObject.transform.SetParent(transform,false);
@@ -28,6 +36,34 @@ namespace RollingPanda
             if(clips!=null)jungle.clip=clips.Jungle;
         }
         bool CanPlay => runner!=null && !RunEntryTransition.Active && !runner.Paused && !runner.Finished && (runner.Session==null || !runner.Session.Defeated);
+        public void Collected(PickupKind kind)
+        {
+            int index=(int)kind;if(!CanPlay || index<0 || index>=pickupSources.Length)return;
+            var source=pickupSources[index];
+            // One voice per colour: dense magnet streams cannot stack unbounded audio.
+            // Red and pouch sounds have independent voices, so blue never masks them.
+            if(source!=null && !source.isPlaying)source.Play();
+        }
+        void StopPickups(){foreach(var source in pickupSources)if(source!=null)source.Stop();}
+        static AudioClip BuildPickupSound(int kind)
+        {
+            const int rate=44100;float duration=kind==0 ? .26f : kind==1 ? .31f : .47f;
+            var samples=new float[Mathf.CeilToInt(duration*rate)];
+            for(int i=0;i<samples.Length;i++)
+            {
+                double t=i/(double)rate;
+                double value=kind==0 ? PickupNote(t,880,false) : kind==1 ? PickupNote(t,1108.73,false)+PickupNote(t-.05,1318.51,false) : PickupNote(t,523.25,true)+PickupNote(t-.06,659.25,true)+PickupNote(t-.12,783.99,true);
+                samples[i]=(float)value;
+            }
+            var clip=AudioClip.Create("Original "+((PickupKind)kind)+" crystal pickup",samples.Length,1,rate,false);clip.SetData(samples,0);return clip;
+        }
+        static double PickupNote(double t,double frequency,bool rounded)
+        {
+            if(t<0 || t>(rounded ? .35 : .26))return 0;
+            double attack=1-System.Math.Exp(-t/(rounded ? .009 : .006)),phase=2*System.Math.PI*frequency*t;
+            if(rounded)return .14*attack*(System.Math.Sin(phase)*System.Math.Exp(-t/.09)+.12*System.Math.Sin(phase*2)*System.Math.Exp(-t/.045));
+            return .17*attack*(System.Math.Sin(phase)*System.Math.Exp(-t/.065)+.16*System.Math.Sin(phase*2.03)*System.Math.Exp(-t/.03)+.035*System.Math.Sin(phase*3.1)*System.Math.Exp(-t/.018));
+        }
         public void Jumped(){if(CanPlay){steps.Stop();stepClock=0;action.pitch=1;action.clip=jumpSwoosh;action.Play();}}
         public void Slid(){if(CanPlay && clips!=null && clips.Slide!=null){steps.Stop();stepClock=0;action.pitch=1;action.clip=clips.Slide;action.Play();}}
         void LateUpdate()
@@ -37,7 +73,7 @@ namespace RollingPanda
             UpdateMusic(distance<previousDistance);
             if(!active || distance<previousDistance)
             {
-                if(running){steps.Stop();action.Stop();}running=false;stepClock=0;previousDistance=distance;return;
+                StopPickups();if(running){steps.Stop();action.Stop();}running=false;stepClock=0;previousDistance=distance;return;
             }
             bool moved=distance-previousDistance>.001;
             bool stepping=moved && !runner.Sliding && capsule.isGrounded;
@@ -97,8 +133,8 @@ namespace RollingPanda
             var clip=AudioClip.Create("Panda flip air swoosh",samples.Length,1,rate,false);
             clip.SetData(samples,0);return clip;
         }
-        void OnDestroy(){if(jumpSwoosh!=null)Destroy(jumpSwoosh);}
-        void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();StopMusic();running=false;}
+        void OnDestroy(){if(jumpSwoosh!=null)Destroy(jumpSwoosh);foreach(var clip in pickupClips)if(clip!=null)Destroy(clip);}
+        void OnDisable(){if(steps!=null)steps.Stop();if(action!=null)action.Stop();StopMusic();StopPickups();running=false;}
     }
 }
 

@@ -17,6 +17,7 @@ namespace RollingPanda
         public bool ShieldActive => shield!=null && ShieldRules.Protects(shield.Remaining);
         GUIStyle toastStyle;
         RunnerMotor runner;
+        RunnerMovementAudio pickupAudio;
         double distance;
         bool leaving;
 #if !UNITY_EDITOR && !UNITY_STANDALONE
@@ -140,6 +141,8 @@ namespace RollingPanda
         public void CollectGold(Vector3 position) {if(!IsRunning) return;pickups.AddPouches(50);PickupFeedback(PickupKind.Pouch,position,50);}
         void PickupFeedback(PickupKind kind,Vector3 worldPosition,int amount)
         {
+            if(pickupAudio==null && runner!=null)pickupAudio=runner.GetComponent<RunnerMovementAudio>();
+            if(pickupAudio!=null)pickupAudio.Collected(kind);
             var camera=Camera.main;
             if(camera!=null)
             {
