@@ -21,3 +21,7 @@ The study's separate headband and independently tinted dark coat establish the c
 Take a front and a three-quarter screenshot at a useful Game view size. Compare head shape, eye placement, muzzle and fur silhouette with the approved artwork. Check the ivory/charcoal contrast, remove the headband, try the other palettes, and inspect whether the layer edges look like soft short fibres. Check the Console for shader errors or pink rendering.
 
 C# compilation passed for runtime/editor and iOS defines. HLSL compilation, actual appearance and physical-iPhone performance have not been verified here. Shell rendering adds draw calls and overdraw; this close-up study is not yet a mobile performance-approved replacement for the runner.
+
+## Screenshot review refinement
+
+The first screenshots exposed a key light facing away from the front, near-black coat losing detail, raised eye-patch discs, a smile buried in the muzzle and shell fibres intersecting the band. The study now corrects the existing key at runtime (so its saved scene need not be recreated), raises charcoal to a readable dark grey, paints softly edged eye patches directly on the head shader, reduces eye protrusion, moves the smile in front of the muzzle, and masks outer fur layers beneath the headband. Patch colours follow the coat palette. These changes require another Unity visual review; shader compilation is not verified by the C# checks.

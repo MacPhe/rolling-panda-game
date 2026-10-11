@@ -8,6 +8,7 @@ namespace RollingPanda
     {
         readonly List<Mesh> meshes=new List<Mesh>();readonly List<Material> materials=new List<Material>();
         readonly List<Material> darkCoat=new List<Material>();
+        Material[] headCoat;
         Texture2D fibres;Transform subject,accessory;float yaw=180;int palette;
         bool built;Font font;GUIStyle caption,button;
 #if !UNITY_EDITOR && !UNITY_STANDALONE
@@ -17,10 +18,15 @@ namespace RollingPanda
         {
             var lit=Shader.Find("Universal Render Pipeline/Lit");var furShader=Shader.Find("Rolling Panda/Study Short Fur");
             if(lit==null || furShader==null){Debug.LogError("Panda study shaders unavailable. Check the Console for shader import errors.");return;}
+            var key=GameObject.Find("Soft studio key");
+            if(key!=null) {key.transform.rotation=Quaternion.Euler(35,-35,0);var light=key.GetComponent<Light>();light.intensity=1.15f;light.color=new Color(1,.96f,.91f);}
+            RenderSettings.ambientMode=UnityEngine.Rendering.AmbientMode.Flat;RenderSettings.ambientLight=new Color(.62f,.64f,.68f);
             fibres=FibreTexture();font=Resources.Load<Font>("Presentation/alagard");
             subject=new GameObject("Original panda bust").transform;subject.SetParent(transform,false);
             var ivory=FurMaterials(furShader,new Color(.94f,.9f,.8f),false);
-            var charcoal=FurMaterials(furShader,new Color(.07f,.075f,.085f),true);
+            var charcoal=FurMaterials(furShader,new Color(.19f,.195f,.21f),true);
+            headCoat=ivory;
+            foreach(var m in headCoat){m.SetFloat("_FacePattern",1);m.SetFloat("_BandOn",1);m.SetColor("_PatchColour",new Color(.19f,.195f,.21f));}
             var cream=FurMaterials(furShader,new Color(.97f,.93f,.84f),false);
             var nose=Solid(lit,new Color(.045f,.035f,.03f),.3f);
             var eyeWhite=Solid(lit,new Color(1,.975f,.9f),.55f);
@@ -33,13 +39,12 @@ namespace RollingPanda
             {
                 Coat("Rounded ear",new Vector3(side*.48f,1.96f,-.01f),new Vector3(.17f,.18f,.12f),charcoal,false);
                 Plain("Inner ear",new Vector3(side*.48f,1.96f,.1f),new Vector3(.095f,.11f,.022f),nose);
-                Coat("Eye patch",new Vector3(side*.24f,1.56f,.432f),new Vector3(.18f,.215f,.067f),charcoal,false).localRotation=Quaternion.Euler(0,side*12,side*-15);
-                Plain("Eye white",new Vector3(side*.235f,1.57f,.491f),new Vector3(.115f,.14f,.05f),eyeWhite);
-                Plain("Amber iris",new Vector3(side*.222f,1.565f,.535f),new Vector3(.073f,.091f,.022f),iris);
-                Plain("Pupil",new Vector3(side*.22f,1.565f,.555f),new Vector3(.044f,.063f,.014f),pupil);
-                Plain("Eye catchlight",new Vector3(side*.22f-.022f,1.6f,.569f),new Vector3(.017f,.021f,.008f),sparkle);
+                Plain("Eye white",new Vector3(side*.235f,1.57f,.455f),new Vector3(.105f,.13f,.03f),eyeWhite);
+                Plain("Amber iris",new Vector3(side*.222f,1.565f,.482f),new Vector3(.073f,.091f,.022f),iris);
+                Plain("Pupil",new Vector3(side*.22f,1.565f,.502f),new Vector3(.044f,.063f,.014f),pupil);
+                Plain("Eye catchlight",new Vector3(side*.22f-.022f,1.6f,.516f),new Vector3(.017f,.021f,.008f),sparkle);
                 Coat("Soft muzzle",new Vector3(side*.105f,1.285f,.436f),new Vector3(.19f,.145f,.15f),cream,false);
-                Coat("Friendly brow",new Vector3(side*.23f,1.758f,.418f),new Vector3(.15f,.045f,.045f),charcoal,false).localRotation=Quaternion.Euler(0,0,side*12);
+                Coat("Friendly brow",new Vector3(side*.23f,1.742f,.401f),new Vector3(.13f,.028f,.025f),charcoal,false).localRotation=Quaternion.Euler(0,0,side*12);
             }
             var nosePart=Plain("Rounded triangular nose",new Vector3(0,1.36f,.585f),new Vector3(.115f,.074f,.055f),nose);
             nosePart.localRotation=Quaternion.Euler(0,0,180);
@@ -98,10 +103,11 @@ namespace RollingPanda
         }
         void Smile(Material material)
         {
+            Plain("Nose to smile",new Vector3(0,1.28f,.59f),new Vector3(.008f,.045f,.009f),material);
             for(int i=0;i<15;i++)
             {
-                float x=Mathf.Lerp(-.16f,.16f,i/14f),y=1.19f+.055f*Mathf.Pow(x/.16f,2);
-                Plain("Smile detail",new Vector3(x,y,.535f),new Vector3(.018f,.009f,.009f),material);
+                float x=Mathf.Lerp(-.15f,.15f,i/14f),y=1.235f+.045f*Mathf.Pow(x/.15f,2);
+                Plain("Smile detail",new Vector3(x,y,.582f-.015f*Mathf.Abs(x/.15f)),new Vector3(.018f,.008f,.009f),material);
             }
         }
         void Band(Material material)
@@ -147,8 +153,8 @@ namespace RollingPanda
         void Action(int index)
         {
             if(index==0) yaw-=30;else if(index==1)yaw+=30;
-            else if(index==2)accessory.gameObject.SetActive(!accessory.gameObject.activeSelf);
-            else {palette=(palette+1)%3;Color[] colours={new Color(.07f,.075f,.085f),new Color(.19f,.09f,.18f),new Color(.27f,.105f,.055f)};foreach(var m in darkCoat)m.SetColor("_BaseColor",colours[palette]);}
+            else if(index==2){accessory.gameObject.SetActive(!accessory.gameObject.activeSelf);foreach(var m in headCoat)m.SetFloat("_BandOn",accessory.gameObject.activeSelf ? 1 : 0);}
+            else {palette=(palette+1)%3;Color[] colours={new Color(.19f,.195f,.21f),new Color(.19f,.09f,.18f),new Color(.27f,.105f,.055f)};foreach(var m in darkCoat)m.SetColor("_BaseColor",colours[palette]);foreach(var m in headCoat)m.SetColor("_PatchColour",colours[palette]);}
         }
         void Update()
         {
