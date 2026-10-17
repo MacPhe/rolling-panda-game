@@ -1,6 +1,6 @@
 # Poacher opening, pursuit and capture
 
-The first playable poacher feature uses two original procedural placeholder characters with field coats, brimmed caps, packs, a net and a dart tube. Their appearance and gait are intentionally available for refinement. No paid model, animation or sound pack is required.
+The first playable poacher feature uses two original procedural placeholder characters with field coats, brimmed caps, packs, a net and a dart tube. The latest quality pass adds woven canvas/leather textures, clothing/face detail, articulated limbs and smoother pursuit/capture motion; see PURSUIT-QUALITY-PASS.md. Their appearance and gait remain available for refinement. No paid model, animation or sound pack is required.
 
 ## Opening
 
@@ -33,3 +33,4 @@ Standalone test: dotnet run --project Tests/PoacherChecks/PoacherChecks.csproj.
 5. Restart immediately during net flight, again during the dart cue, and after the result panel. The normal panda, camera, sounds and controls should return without a remaining net or dart.
 6. Pause/resume mid-capture and return to Main menu. Check no duplicate actors, capture audio, hidden panda or stuck cinematic camera on the next run.
 7. Compare portrait and landscape framing, and adjust master volume/mute. The captive camera backs away more in portrait to fit the scene.
+
