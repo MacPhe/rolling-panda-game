@@ -29,6 +29,7 @@ namespace RollingPanda
         GUIStyle counterStyle, metricStyle, panelStyle, buttonStyle;
         public bool IsRunning => !RunEntryTransition.Active && runner!=null && !runner.Paused && !runner.Finished && !Defeated;
         public EndlessTrack Track { get; set; }
+        public PoacherPursuit Pursuit { get; set; }
 #if UNITY_EDITOR || UNITY_STANDALONE
         bool previewSafeArea;
 #endif
@@ -64,7 +65,7 @@ namespace RollingPanda
             return 0;
         }
 
-        bool CanReturn => runner != null && (Defeated || runner.Paused || runner.Finished);
+        bool CanReturn => runner != null && (Defeated && (Pursuit==null || Pursuit.CaptureComplete) || runner.Paused || runner.Finished);
         Rect MenuRect(float width,float height)
         {
             float panelWidth=Mathf.Min(430,width-32);
@@ -172,11 +173,13 @@ namespace RollingPanda
             DefeatReason = reason;
             var audio=runner.GetComponent<RunnerMovementAudio>();if(audio!=null)audio.ReactToDefeat();
             SaveBest();
+            if(Pursuit!=null)Pursuit.Caught();
         }
 
         public void ResetRun()
         {
             Defeated = false;
+            if(Pursuit!=null)Pursuit.ResetPursuit();
             System.Array.Clear(toasts,0,toasts.Length);nextToast=0;if(specials!=null) specials.ResetPowerups();if(shield!=null) shield.ResetPowerup();if(magnet!=null) magnet.ResetPowerup();
             DefeatReason = null;
             pickups.Reset();
@@ -205,11 +208,11 @@ namespace RollingPanda
             GUI.Label(new Rect(18,49,188,28),$"Score {Score}",counterStyle);
             float right=width-12;
             GUI.Label(new Rect(right-142,15,134,32),$"{(long)distance} m",metricStyle);
-            if(Defeated || runner.Paused || runner.Finished)
+            if(Defeated && (Pursuit==null || Pursuit.CaptureComplete) || runner.Paused || runner.Finished)
             {
                 float panelWidth=Mathf.Min(430,width-32),left=(width-panelWidth)/2,top=Mathf.Max(82,height*.31f);
                 GUI.Box(new Rect(left,top,panelWidth,150),"");
-                string state=Defeated ? "Run ended" : runner.Finished ? "Course complete!" : "Paused";
+                string state=Defeated ? (Pursuit==null ? "Run ended" : "Caught by poachers") : runner.Finished ? "Course complete!" : "Paused";
                 GUI.Label(new Rect(left+12,top+10,panelWidth-24,30),state,panelStyle);
                 GUI.Label(new Rect(left+12,top+44,panelWidth-24,38),Defeated ? DefeatReason : "Swipe left/right: lanes   Up: jump   Down: roll",panelStyle);
                 bool menuClicked=GUI.Button(MenuRect(width,height),"Main menu",buttonStyle);

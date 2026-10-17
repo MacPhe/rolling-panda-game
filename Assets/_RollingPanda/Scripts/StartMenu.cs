@@ -154,6 +154,8 @@ namespace RollingPanda
         }
         IEnumerator RollIntoRun()
         {
+            var pursuit=worldArt.GetComponent<PoacherPursuit>();
+            if(pursuit!=null)yield return pursuit.Opening(sleeper);
             // Preload during the roll and activate only once the short fade fully covers the view.
             var overlay=entrance;
             Vector3 start = sleeper.localPosition;

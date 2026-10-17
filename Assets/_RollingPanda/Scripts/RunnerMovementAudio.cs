@@ -21,7 +21,7 @@ namespace RollingPanda
             footObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=2400;
             jumpSwoosh=BuildSwoosh();
             var voiceObject=new GameObject("Quiet panda placeholder voice");voiceObject.transform.SetParent(transform,false);
-            voice=voiceObject.AddComponent<AudioSource>();voice.playOnAwake=false;voice.loop=false;voice.spatialBlend=0;voice.volume=.22f;
+            voice=voiceObject.AddComponent<AudioSource>();voice.playOnAwake=false;voice.loop=false;voice.spatialBlend=0;voice.volume=.25f;
             voiceObject.AddComponent<AudioLowPassFilter>().cutoffFrequency=2000;
             voiceClips=new[]{BuildPandaVoice(0),BuildPandaVoice(1),BuildPandaVoice(2)};
             for(int i=0;i<3;i++)
