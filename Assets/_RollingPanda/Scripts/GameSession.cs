@@ -51,8 +51,11 @@ namespace RollingPanda
             RunnerInput.BlocksPointer = BlocksPointer;
             RunnerInput.TouchButtonAt = TouchButtonAt;
         }
+        void OnApplicationPause(bool suspended){if(suspended)PlayerProfile.Save();}
+        void OnApplicationQuit(){PlayerProfile.Save();}
         void OnDestroy()
         {
+            PlayerProfile.Save();
             if (RunnerInput.BlocksPointer == BlocksPointer) RunnerInput.BlocksPointer = null;
             if (RunnerInput.TouchButtonAt == TouchButtonAt) RunnerInput.TouchButtonAt = null;
         }
@@ -77,6 +80,7 @@ namespace RollingPanda
         }
         void SaveBest()
         {
+            PlayerProfile.Save();
             long best;
             long.TryParse(PlayerPrefs.GetString("RollingPanda.BestScore","0"),out best);
             if(Score>best) { PlayerPrefs.SetString("RollingPanda.BestScore",Score.ToString()); PlayerPrefs.Save(); }
@@ -140,10 +144,10 @@ namespace RollingPanda
         public void CollectGem(PickupKind kind,Vector3 worldPosition)
         {
             if(!IsRunning) return;
-            pickups.Collect(kind);
+            pickups.Collect(kind);if(kind==PickupKind.Pouch)PlayerProfile.EarnGreen(1);
             PickupFeedback(kind,worldPosition,1);
         }
-        public void CollectGold(Vector3 position) {if(!IsRunning) return;pickups.AddPouches(50);PickupFeedback(PickupKind.Pouch,position,50);}
+        public void CollectGold(Vector3 position) {if(!IsRunning) return;pickups.AddPouches(50);PlayerProfile.EarnGreen(50);PickupFeedback(PickupKind.Pouch,position,50);}
         void PickupFeedback(PickupKind kind,Vector3 worldPosition,int amount)
         {
             if(pickupAudio==null && runner!=null)pickupAudio=runner.GetComponent<RunnerMovementAudio>();
@@ -182,6 +186,7 @@ namespace RollingPanda
 
         public void ResetRun()
         {
+            PlayerProfile.Save();
             Defeated = false;
             if(Pursuit!=null)Pursuit.ResetPursuit();
             System.Array.Clear(toasts,0,toasts.Length);nextToast=0;if(specials!=null) specials.ResetPowerups();if(shield!=null) shield.ResetPowerup();if(magnet!=null) magnet.ResetPowerup();

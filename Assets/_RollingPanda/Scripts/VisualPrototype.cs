@@ -120,6 +120,7 @@ namespace RollingPanda
                 obstacleArt.Initialize(rock,wood,red,jumpAccent,slideAccent,leaves);
                 lanternGlow.Add(obstacleArt.LanternSocket);
             }
+            CosmeticWardrobe.Attach(panda);
             gameObject.AddComponent<PoacherPursuit>().Initialize(runner,panda);
         }
 

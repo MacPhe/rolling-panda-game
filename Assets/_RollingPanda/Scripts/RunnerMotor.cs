@@ -46,8 +46,8 @@ namespace RollingPanda
 
         void Update()
         {
-            if (controller == null || RunEntryTransition.Active) return;
-            var commands = RunnerInput.Read();
+            if (controller == null || RunEntryTransition.Active && !RunEntryTransition.AllowsMovement) return;
+            var commands = RunEntryTransition.Active ? default(RunnerCommands) : RunnerInput.Read();
             if (commands.Restart) { Restart(); return; }
             if (commands.TogglePause) paused = !paused;
             if (paused || Finished || (Session != null && Session.Defeated)) return;

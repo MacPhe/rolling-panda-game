@@ -16,7 +16,7 @@ namespace RollingPanda
         RunnerCamera chaseCamera;
         VisualPrototype worldArt;
         RunnerMotor gameRunner;
-        bool ready;
+        bool ready;int selectedItem;string shopMessage="";
         EnvironmentArt environment;
         readonly List<Mesh> meshes=new List<Mesh>();
         Mesh bambooBlade;
@@ -39,7 +39,7 @@ namespace RollingPanda
         bool Wide => Width > Height * 1.2f;
         float Left => Wide ? Width * .61f : 24;
         float PanelWidth => Wide ? Width * .35f : Width - 48;
-        float Top => panel=="Settings" ? Mathf.Max(18,Mathf.Min(Wide ? Height*.12f : Height*.38f,Height-400)) : Wide ? Height * .24f : Height * .49f;
+        float Top => panel=="Shop" ? Mathf.Max(18,Mathf.Min(Wide ? Height*.12f : Height*.36f,Height-452)) : panel=="Settings" ? Mathf.Max(18,Mathf.Min(Wide ? Height*.12f : Height*.38f,Height-400)) : Wide ? Height * .24f : Height * .49f;
 
         void Awake()
         {
@@ -72,8 +72,14 @@ namespace RollingPanda
             foreach(var wind in GetComponentsInChildren<ForestWind>()) wind.Bind(gameRunner);
             yield return null;
             yield return null;
-            if(worldArt.Panda!=null) worldArt.Panda.gameObject.SetActive(false);
             ready=gameRunner!=null && worldArt.Panda!=null;
+            if(ready)
+            {
+                worldArt.enabled=false;
+                Destroy(sleeper.gameObject);sleeper=worldArt.Panda;sleeper.gameObject.SetActive(true);
+                sleeper.localPosition=new Vector3(-3.6f,3.15f,-.3f);sleeper.localRotation=Quaternion.Euler(0,180,90);
+                sleeper.GetComponent<PandaLookStudy>().SetSleeping(true);
+            }
             if(ready)
             {
                 var display=new GameObject("Shop character preview");display.transform.SetParent(transform,false);
@@ -109,13 +115,15 @@ namespace RollingPanda
                 {
                     view.orthographicSize=Wide ? 2.6f : 3.8f;
                     view.transform.position=new Vector3(-3.2f,2.5f,-12);
-                    view.transform.LookAt(Wide ? new Vector3(-2.8f,1.7f,-4) : new Vector3(-4.3f,.65f,-4));
+                    view.transform.LookAt(Wide ? new Vector3(-2.8f,1.7f,-4) : new Vector3(-4.3f,-1.35f,-4));
                 }
             }
 #if !UNITY_EDITOR && !UNITY_STANDALONE
             var touch = Touchscreen.current;
-            if (touch == null || loading) return;
+            if(loading)return;
+            if(touch==null){pressed=-1;draggingSlider=-1;return;}
             var t = touch.primaryTouch;
+            if(t.phase.ReadValue()==UnityEngine.InputSystem.TouchPhase.Canceled){pressed=-1;draggingSlider=-1;GameAudioSettings.Save();return;}
             Vector2 p = new Vector2((t.position.ReadValue().x-safe.x)/Scale, (safe.yMax-t.position.ReadValue().y)/Scale);
             if(panel=="Settings")
             {
@@ -139,6 +147,7 @@ namespace RollingPanda
         int Hit(Vector2 p)
         {
             if(panel=="Settings")return Row(4).Contains(p) ? 4 : -1;
+            if(panel=="Shop"){for(int i=0;i<7;i++)if(ShopRect(i).Contains(p))return i;return -1;}
             for (int i=0; i<(panel=="" ? 4 : panel=="Shop" ? 4 : 1); i++)
                 if (Row(i).Contains(p)) return i;
             return -1;
@@ -152,16 +161,32 @@ namespace RollingPanda
                 {
                     loading=true; StartCoroutine(RollIntoRun());
                 }
-                else panel = i==1 ? "Settings" : i==2 ? "Leaderboards" : "Shop";
+                else
+                {
+                    panel = i==1 ? "Settings" : i==2 ? "Leaderboards" : "Shop";
+                    if(panel=="Shop"){shopMessage="";shopPreview.Preview(ShopCatalog.Items[selectedItem].Id);}
+                }
             }
             else if (panel=="Settings")
             {GameAudioSettings.Save();panel="";}
             else if(panel=="Shop")
             {
-                if(i==0) shopPreview.Turn(-45);
-                else if(i==1) shopPreview.Turn(45);
-                else if(i==2) shopPreview.TogglePose();
-                else panel="";
+                if(i<2)
+                {
+                    selectedItem=(selectedItem+(i==0 ? -1 : 1)+ShopCatalog.Items.Length)%ShopCatalog.Items.Length;
+                    shopMessage="";shopPreview.Preview(ShopCatalog.Items[selectedItem].Id);
+                }
+                else if(i==2)
+                {
+                    var result=PlayerProfile.BuyOrEquip(ShopCatalog.Items[selectedItem].Id);
+                    shopMessage=result==ShopResult.NotEnough ? "Not enough green gems" : result==ShopResult.Purchased ? "Unlocked and equipped!" : "Equipped";
+                    shopPreview.Preview(ShopCatalog.Items[selectedItem].Id);
+                }
+                else if(i==3)shopPreview.Turn(-45);
+                else if(i==4)shopPreview.Turn(45);
+                else if(i==5)shopPreview.TogglePose();
+                else {shopPreview.Preview(null);panel="";}
+
             }
             else panel="";
         }
@@ -169,78 +194,44 @@ namespace RollingPanda
         {
             var pursuit=worldArt.GetComponent<PoacherPursuit>();
             if(pursuit!=null)yield return pursuit.Opening(sleeper);
-            // Preload during the roll and activate only once the short fade fully covers the view.
-            var overlay=entrance;
-            Vector3 start = sleeper.localPosition;
-            Quaternion rotation = sleeper.localRotation;
-            Quaternion upright = Quaternion.Euler(0,180,0)*Quaternion.Euler(0,0,-90); // Head (-X) becomes up; face remains toward -Z.
-            Vector3 cameraStart = view.transform.position;
-            Quaternion cameraRotation = view.transform.rotation;
-            Matrix4x4 menuProjection = view.projectionMatrix;
-            var parts = new List<Transform>();
-            var poses = new List<Vector3>();
-            foreach (Transform child in sleeper) { parts.Add(child); poses.Add(child.localPosition); }
-            bool eyesOpened=false;
-            float elapsed = 0;
-            while (elapsed < 2.7f)
+            var look=sleeper.GetComponent<PandaLookStudy>();look.SetSleeping(false);
+            Transform head=sleeper.Find("Head tuck pivot"),left=sleeper.Find("Left arm pivot"),right=sleeper.Find("Right arm pivot"),lf=sleeper.Find("Left leg pivot"),rf=sleeper.Find("Right leg pivot");
+            Vector3 start=sleeper.localPosition,landing=new Vector3(-3,0,-4.5f),cameraStart=view.transform.position;
+            Quaternion rest=sleeper.localRotation,cameraRotation=view.transform.rotation;
+            Matrix4x4 menuProjection=view.projectionMatrix;
+            float elapsed=0;
+            while(elapsed<3.1f)
             {
-                elapsed += Time.unscaledDeltaTime;
-                if(!eyesOpened && elapsed>.22f){sleeper.GetComponent<PandaLookStudy>().SetSleeping(false);eyesOpened=true;}
-                float wake = Mathf.SmoothStep(0,1,Mathf.Clamp01(elapsed/.45f));
-                float fall = Mathf.Clamp01((elapsed-.45f)/.85f);
-                float roll = Mathf.Clamp01((elapsed-1.3f)/1.4f);
-                float tuck = Mathf.SmoothStep(0,1,fall);
-                Vector3 landing = new Vector3(-3,.75f,-4.5f);
-                if(elapsed < .45f)
-                {
-                    sleeper.localPosition=start+Vector3.up*(Mathf.Sin(wake*Mathf.PI)*.12f);
-                    sleeper.localRotation=rotation*Quaternion.Euler(0,0,-18*wake);
-                }
-                else if(elapsed < 1.3f)
-                {
-                    sleeper.localPosition=new Vector3(Mathf.Lerp(start.x,landing.x,fall),Mathf.Lerp(start.y,landing.y,fall*fall),Mathf.Lerp(start.z,landing.z,fall));
-                    sleeper.localRotation=Quaternion.Slerp(rotation,upright,Mathf.SmoothStep(0,1,fall));
-                }
-                else
-                {
-                    sleeper.localPosition=landing+new Vector3(3*roll,Mathf.Abs(Mathf.Sin(roll*Mathf.PI*3))*.12f,4.5f*roll);
-                    sleeper.localRotation=Quaternion.AngleAxis(720*roll,Vector3.right)*upright;
-                }
-                sleeper.localScale=Vector3.Lerp(Vector3.one,new Vector3(.85f,1,.95f),tuck);
-                for(int i=0;i<parts.Count;i++)
-                {
-                    Vector3 target=poses[i];
-                    if(parts[i].name=="Relaxed paw") target=new Vector3(target.x*.55f,-.1f,-.45f);
-                    if(parts[i].name=="Head" || parts[i].name=="Eye patch" || parts[i].name=="Closed eyelid" || parts[i].name=="Nose" || parts[i].name=="Ear" || parts[i].name.StartsWith("Red headband") || parts[i].name=="Headband ribbon")
-                        target+=new Vector3(.18f,-.12f,0);
-                    parts[i].localPosition=Vector3.Lerp(poses[i],target,tuck);
-                }
-                // Finish at the actual runner's chase view in this same world.
-                float chase = Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-.65f)/1.75f));
-                Vector3 feet=sleeper.localPosition-Vector3.up*.7f;
-                Vector3 cameraEnd=feet+new Vector3(0,5,-8);
+                elapsed=Mathf.Min(3.1f,elapsed+Mathf.Min(Time.unscaledDeltaTime,.05f));
+                float fall=PoacherRules.Progress(elapsed,.3f,1.2f),roll=Mathf.Clamp01((elapsed-1.2f)/1.9f);
+                float travel=roll*roll*(2-roll); // Accelerate out of the landing rather than stop at the handoff.
+                float tuck=PoacherRules.Progress(elapsed,.4f,1.05f)*(1-PoacherRules.Progress(elapsed,2.75f,3.1f));
+                Vector3 feet=elapsed<1.2f ? Vector3.Lerp(start,landing,fall)+Vector3.up*Mathf.Sin(fall*Mathf.PI)*.18f : Vector3.Lerp(landing,Vector3.zero,travel);
+                Quaternion rotation=elapsed<1.2f ? Quaternion.Slerp(rest,Quaternion.identity,fall) : Quaternion.Euler(720*travel,0,0);
+                Vector3 pivot=new Vector3(0,.9f,0);
+                sleeper.localScale=Vector3.one;sleeper.localRotation=rotation;
+                sleeper.localPosition=elapsed<1.2f ? feet : feet+new Vector3(0,.9f-.22f*tuck,0)-rotation*pivot;
+                head.localPosition=new Vector3(0,1.6f-.55f*tuck,.12f*tuck);head.localRotation=Quaternion.Euler(45*tuck,0,0);
+                left.localPosition=new Vector3(-.48f+.18f*tuck,1.15f-.12f*tuck,.15f*tuck);right.localPosition=new Vector3(.48f-.18f*tuck,1.15f-.12f*tuck,.15f*tuck);
+                left.localRotation=Quaternion.Euler(-145*tuck,0,-12);right.localRotation=Quaternion.Euler(-145*tuck,0,12);
+                lf.localPosition=new Vector3(-.23f,.49f+.25f*tuck,.18f*tuck);rf.localPosition=new Vector3(.23f,.49f+.25f*tuck,.18f*tuck);
+                lf.localRotation=Quaternion.Euler(-150*tuck,0,-3);rf.localRotation=Quaternion.Euler(-150*tuck,0,3);
+                if(pursuit!=null)pursuit.EscapeFrame(elapsed);
+                float chase=PoacherRules.Progress(elapsed,.2f,2.9f);
+                Vector3 centre=sleeper.TransformPoint(new Vector3(0,.9f,0));
+                Vector3 cameraEnd=new Vector3(centre.x*.3f,5,centre.z-8);
                 view.transform.position=Vector3.Lerp(cameraStart,cameraEnd,chase);
-                Quaternion look=Quaternion.LookRotation(feet+new Vector3(0,1,6)-view.transform.position);
-                view.transform.rotation=Quaternion.Slerp(cameraRotation,look,chase);
-                if(elapsed>.65f)
-                {
-                    view.orthographic=false; view.fieldOfView=60;
-                    Matrix4x4 perspective=Matrix4x4.Perspective(60,view.aspect,view.nearClipPlane,view.farClipPlane);
-                    Matrix4x4 projection=menuProjection; for(int cell=0;cell<16;cell++) projection[cell]=Mathf.Lerp(menuProjection[cell],perspective[cell],chase); view.projectionMatrix=projection;
-                }
-                overlay.Opacity=Mathf.SmoothStep(0,1,Mathf.Clamp01((elapsed-2.45f)/.25f));
+                Quaternion aim=Quaternion.LookRotation(Vector3.Lerp(centre,gameRunner.transform.position+new Vector3(0,1,6),PoacherRules.Progress(elapsed,2.45f,3.1f))-view.transform.position);
+                view.transform.rotation=Quaternion.Slerp(cameraRotation,aim,chase);
+                view.orthographic=false;view.fieldOfView=60;
+                Matrix4x4 perspective=Matrix4x4.Perspective(60,view.aspect,view.nearClipPlane,view.farClipPlane),projection=menuProjection;
+                for(int cell=0;cell<16;cell++)projection[cell]=Mathf.Lerp(menuProjection[cell],perspective[cell],chase);view.projectionMatrix=projection;
                 yield return null;
             }
-            // Keep the camera alignment, with scene activation hidden by the short fade.
-            view.ResetProjectionMatrix();
-            overlay.Opacity=1;
-            yield return null;
-            sleeper.gameObject.SetActive(false);
-            if(worldArt.Panda!=null) worldArt.Panda.gameObject.SetActive(true);
-            view.orthographic=false;view.fieldOfView=60;view.ResetProjectionMatrix();
-            chaseCamera.enabled=true;
-            overlay.Finish(null);
-            enabled=false;
+            sleeper.localPosition=Vector3.zero;sleeper.localRotation=Quaternion.identity;sleeper.localScale=Vector3.one;
+            view.ResetProjectionMatrix();chaseCamera.enabled=true;worldArt.enabled=true;
+            if(pursuit!=null)pursuit.FinishEscape();
+            entrance.FinishSeamless();enabled=false;
         }
         void OnGUI()
         {
@@ -254,7 +245,7 @@ namespace RollingPanda
             }
             var previous=GUI.matrix;
             GUI.matrix=Matrix4x4.TRS(new Vector3(safe.x,Screen.height-safe.yMax,0),Quaternion.identity,new Vector3(Scale,Scale,1));
-            GUI.Box(new Rect(Left-12,Top-8,PanelWidth+24,panel=="" || panel=="Shop" || panel=="Settings" ? 390 : 290),"");
+            GUI.Box(new Rect(Left-12,Top-8,PanelWidth+24,panel=="Shop" ? 440 : panel=="" || panel=="Settings" ? 390 : 290),"");
             GUI.Label(new Rect(Left,Top,PanelWidth,52),panel=="" ? "Rolling Panda" : panel,title);
             if(panel=="")
             {
@@ -279,10 +270,15 @@ namespace RollingPanda
             }
             else if(panel=="Shop")
             {
-                GUI.Label(new Rect(Left,Top+50,PanelWidth,24),"Character preview",text);
-                DrawButton(0,"Turn left");DrawButton(1,"Turn right");
-                DrawButton(2,shopPreview==null ? "Pose" : shopPreview.PoseLabel);DrawButton(3,"Back");
-                GUI.Label(new Rect(Left,Top+318,PanelWidth,60),"Cosmetics coming later",text);
+                var item=ShopCatalog.Items[selectedItem];var inventory=PlayerProfile.Inventory;
+                GUI.Label(new Rect(Left,Top+48,PanelWidth,27),"Green gems: "+inventory.Green,text);
+                GUI.Label(new Rect(Left,Top+78,PanelWidth,30),item.Name,text);
+                GUI.Label(new Rect(Left,Top+108,PanelWidth,27),shopMessage!="" ? shopMessage : item.Rarity+" | "+item.Slot+" | "+(inventory.Owns(item.Id) ? "Owned" : item.Price+" green"),text);
+                ShopButton(0,"Previous");ShopButton(1,"Next");
+                bool equipped=inventory.Equipped(item.Slot)==item.Id;
+                ShopButton(2,equipped ? "Equipped" : inventory.Owns(item.Id) ? "Equip" : "Buy - "+item.Price+" green");
+                ShopButton(3,"Turn left");ShopButton(4,"Turn right");ShopButton(5,shopPreview.PoseLabel);ShopButton(6,"Back");
+
             }
             else
             {
@@ -292,6 +288,18 @@ namespace RollingPanda
             }
 
             GUI.matrix=previous;
+        }
+        Rect ShopRect(int i)
+        {
+            if(i==0 || i==1 || i==3 || i==4){bool right=i==1 || i==4;return new Rect(Left+(right ? (PanelWidth+8)/2 : 0),Top+(i<2 ? 144 : 256),(PanelWidth-8)/2,46);}
+            return new Rect(Left,Top+(i==2 ? 200 : i==5 ? 312 : 368),PanelWidth,46);
+        }
+        void ShopButton(int i,string label)
+        {
+            bool clicked=GUI.Button(ShopRect(i),label,button);
+#if UNITY_EDITOR || UNITY_STANDALONE
+            if(clicked)Activate(i);
+#endif
         }
         Rect SliderRail(int i)=>new Rect(Left+12,Top+84+i*58,PanelWidth-24,20);
         Rect SliderHit(int i)=>new Rect(Left,Top+78+i*58,PanelWidth,40);
@@ -458,7 +466,7 @@ namespace RollingPanda
             var emission=ps.emission;emission.rateOverTime=5;var shape=ps.shape;shape.shapeType=ParticleSystemShapeType.Box;shape.scale=new Vector3(7,.2f,3);
             var pm=new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));materials.Add(pm);pm.SetColor("_BaseColor",new Color(1,.7f,.8f));ps.GetComponent<ParticleSystemRenderer>().sharedMaterial=pm;
         }
-        void OnDisable(){GameAudioSettings.Save();if(menuMusic!=null)menuMusic.Stop();}
+        void OnDisable(){PlayerProfile.Save();GameAudioSettings.Save();if(menuMusic!=null)menuMusic.Stop();}
         void OnDestroy()
         {
             foreach(var m in materials) Destroy(m);
@@ -467,6 +475,7 @@ namespace RollingPanda
         }
     }
 }
+
 
 
 

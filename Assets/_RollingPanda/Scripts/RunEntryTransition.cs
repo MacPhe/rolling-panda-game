@@ -7,29 +7,32 @@ namespace RollingPanda
     public sealed class RunEntryTransition : MonoBehaviour
     {
         public static bool Active { get; private set; }
+        public static bool AllowsMovement {get;private set;}
+        bool seamless;
         public static bool Revealing { get; private set; }
         public static float RevealProgress { get; private set; }
         public float Opacity { get; set; }
         void Awake() { Active=true; DontDestroyOnLoad(gameObject); }
+        public void FinishSeamless(){seamless=true;StartCoroutine(Reveal(null));}
         public void Finish(AsyncOperation operation) { StartCoroutine(Reveal(operation)); }
         IEnumerator Reveal(AsyncOperation operation)
         {
-            Opacity=1;
+            Opacity=seamless ? 0 : 1;
             if(operation!=null)
             {
                 operation.allowSceneActivation=true;
                 while(!operation.isDone) yield return null;
             }
             // Let gameplay bootstrap and visual Start methods finish behind the cover.
-            yield return null;
-            yield return null;
-            Revealing=true; RevealProgress=0;
+            if(!seamless){yield return null;yield return null;}
+            Revealing=true;AllowsMovement=seamless; RevealProgress=0;
             float elapsed=0;
-            while(elapsed<.75f)
+            float duration=seamless ? .35f : .75f;
+            while(elapsed<duration)
             {
                 elapsed+=Time.unscaledDeltaTime;
-                RevealProgress=Mathf.Clamp01(elapsed/.75f);
-                Opacity=1-Mathf.SmoothStep(0,1,RevealProgress);
+                RevealProgress=Mathf.Clamp01(elapsed/duration);
+                Opacity=seamless ? 0 : 1-Mathf.SmoothStep(0,1,RevealProgress);
                 yield return null;
             }
             RunnerInput.Reset();Revealing=false;Active=false;Destroy(gameObject);
@@ -44,7 +47,7 @@ namespace RollingPanda
             GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);
             GUI.color=color;GUI.matrix=matrix;GUI.depth=depth;
         }
-        void OnDestroy() { Active=false; Revealing=false;RevealProgress=0; }
+        void OnDestroy() { Active=false;AllowsMovement=false; Revealing=false;RevealProgress=0; }
     }
 }
 

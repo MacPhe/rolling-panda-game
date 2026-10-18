@@ -27,7 +27,7 @@ namespace RollingPanda
         Camera view;RunnerCamera chase;
         Transform captiveHead,leftArm,rightArm,leftLeg,rightLeg;
         AudioSource effects,voices;AudioClip[] sounds;Mesh ropeMesh;
-        float age,gait,lag,cueClock=9;bool caught,opening,netPlayed,dartPlayed,oldChaseEnabled,pausedSounds;
+        float age,gait,lag,cueClock=9,missedNetLife;Vector3 missedNetWorld;bool escapeThrown;bool caught,opening,netPlayed,dartPlayed,oldChaseEnabled,pausedSounds;
         Vector3 cameraStart,captureCameraOffset;Quaternion cameraRotation;
         readonly RaycastHit[] cameraHits=new RaycastHit[32];
         public bool CaptureComplete=>caught && PoacherRules.Complete(age);
@@ -45,7 +45,7 @@ namespace RollingPanda
             ropeMesh=BuildNet();
             for(int i=0;i<2;i++)actors[i]=BuildActor(i);
             var look=panda.GetComponent<PandaLookStudy>();if(look!=null)look.SetSleeping(true);
-            captive=Instantiate(panda,stage,false);captive.name="Captured panda visual";
+            captive=Instantiate(panda,stage,false);captive.name="Captured panda visual";CosmeticWardrobe.Attach(captive);
             foreach(var study in captive.GetComponentsInChildren<PandaLookStudy>(true)){study.enabled=false;Destroy(study);}
             if(look!=null)look.SetSleeping(false);
             captiveHead=captive.Find("Head tuck pivot");leftArm=captive.Find("Left arm pivot");rightArm=captive.Find("Right arm pivot");leftLeg=captive.Find("Left leg pivot");rightLeg=captive.Find("Right leg pivot");
@@ -175,26 +175,58 @@ namespace RollingPanda
         }
         public IEnumerator Opening(Transform sleeper)
         {
-            opening=true;stage.gameObject.SetActive(true);stage.position=Vector3.zero;effects.PlayOneShot(sounds[0]);
+            opening=true;escapeThrown=false;stage.gameObject.SetActive(true);stage.position=Vector3.zero;effects.PlayOneShot(sounds[0]);
             float t=0;bool spoke=false;Quaternion rest=sleeper.localRotation;
-            while(t<1.45f)
+            while(t<2.6f)
             {
-                t+=Time.unscaledDeltaTime;float p=PoacherRules.Progress(t,0,1.45f);
-                if(!spoke && t>.3f){voices.PlayOneShot(sounds[1]);spoke=true;}
+                t+=Mathf.Min(Time.unscaledDeltaTime,.05f);float p=PoacherRules.Progress(t,0,2.6f);
+                if(!spoke && t>.8f){voices.PlayOneShot(sounds[1],.65f);spoke=true;}
                 for(int i=0;i<2;i++)
                 {
-                    actors[i].Root.localPosition=Vector3.Lerp(new Vector3(-1.6f+i*1.3f,0,3+i),new Vector3(-3.2f+i*1.3f,0,1.6f+i),p);
-                    actors[i].Root.localRotation=Quaternion.Euler(0,-35,0);Walk(actors[i],t*9+i,Mathf.Sin(p*Mathf.PI)*.7f+.3f);
+                    actors[i].Root.localPosition=Vector3.Lerp(new Vector3(-7+i*1.5f,0,3+i),new Vector3(-5+i*1.4f,0,-1.8f-i*.7f),p);
+                    actors[i].Root.localRotation=Quaternion.Euler(0,150,0);Walk(actors[i],t*5+i,.45f);
+                    actors[i].Torso.localRotation*=Quaternion.Euler(14,0,0);
                 }
-                var look=sleeper.GetComponent<PandaLookStudy>();if(look!=null && t>.2f)look.SetSleeping(false);
-                sleeper.localRotation=rest*Quaternion.Euler(0,0,Mathf.Sin(p*Mathf.PI)*-5);
+                if(t>1.9f){var look=sleeper.GetComponent<PandaLookStudy>();if(look!=null)look.SetSleeping(false);}
+                sleeper.localRotation=rest*Quaternion.Euler(0,0,Mathf.Sin(p*Mathf.PI)*-3);
                 yield return null;
             }
-            sleeper.localRotation=rest;opening=false;stage.gameObject.SetActive(false);
+            sleeper.localRotation=rest;
+        }
+        public void EscapeFrame(float time)
+        {
+            for(int i=0;i<2;i++)
+            {
+                Vector3 from=new Vector3(-5+i*1.4f,0,-1.8f-i*.7f),reach=new Vector3(-3.6f+i*.9f,0,-4.9f-i*.5f),end=new Vector3(i==0 ? -1.65f : 1.65f,0,-3.8f-i*.65f);
+                Vector3 pos=time<1.25f ? Vector3.Lerp(from,reach,PoacherRules.Progress(time,0,1.25f)) : Vector3.Lerp(reach,end,PoacherRules.Progress(time,1.25f,3.1f));
+                Vector3 delta=pos-actors[i].Root.localPosition;actors[i].Root.localPosition=pos;
+                if(delta.sqrMagnitude>.00001f)actors[i].Root.rotation=Quaternion.Slerp(actors[i].Root.rotation,Quaternion.LookRotation(delta),1-Mathf.Exp(-8*Time.unscaledDeltaTime));
+                Walk(actors[i],time*11+i,.9f);
+            }
+            float attempt=PoacherRules.Progress(time,.65f,1.2f),release=PoacherRules.Progress(time,1.2f,1.6f);
+            actors[0].RightArm.localRotation=Quaternion.Euler(Mathf.Lerp(-30,-140,attempt)*(1-release),0,12);
+            actors[0].RightElbow.localRotation=Quaternion.Euler(-65*(1-release),0,0);
+            if(time>=1.2f && !escapeThrown)
+            {
+                escapeThrown=true;netRelease=stage.InverseTransformPoint(actors[0].CarryNet.position);netRotation=Quaternion.Inverse(stage.rotation)*actors[0].CarryNet.rotation;
+                actors[0].CarryNet.gameObject.SetActive(false);net.gameObject.SetActive(true);effects.PlayOneShot(sounds[2],.75f);
+            }
+            if(escapeThrown)
+            {
+                float flight=PoacherRules.Progress(time,1.2f,2.05f);
+                net.localPosition=Vector3.Lerp(netRelease,new Vector3(-3.6f,.12f,-4.8f),flight)+Vector3.up*Mathf.Sin(flight*Mathf.PI)*.6f;
+                net.localScale=Vector3.Lerp(new Vector3(.35f,.35f,.05f),new Vector3(.85f,.08f,.8f),flight);net.localRotation=Quaternion.Slerp(netRotation,Quaternion.identity,flight);
+            }
+        }
+        public void FinishEscape()
+        {
+            opening=false;chaseStarted=true;lag=3.8f;previousRunnerX=runner.transform.position.x;
+            if(escapeThrown){missedNetWorld=net.position;missedNetLife=2.5f;}
+            actors[0].CarryNet.gameObject.SetActive(true);
         }
         public void Caught()
         {
-            if(caught)return;caught=true;age=0;netPlayed=dartPlayed=false;netRotation=Quaternion.identity;netRelease=dartRelease=Vector3.zero;opening=false;effects.Stop();voices.Stop();pausedSounds=false;
+            if(caught)return;missedNetLife=0;caught=true;age=0;netPlayed=dartPlayed=false;netRotation=Quaternion.identity;netRelease=dartRelease=Vector3.zero;opening=false;effects.Stop();voices.Stop();pausedSounds=false;
             stage.gameObject.SetActive(true);stage.localPosition=new Vector3(0,-runner.transform.position.y,0);stage.localRotation=Quaternion.identity;
             ResetCaptive();
             pandaStart=stage.InverseTransformPoint(panda.position);pandaRotation=Quaternion.Inverse(stage.rotation)*panda.rotation;pandaScale=panda.localScale;
@@ -211,7 +243,7 @@ namespace RollingPanda
         }
         public void ResetPursuit()
         {
-            bool wasCaught=caught;caught=false;age=gait=lag=0;cueClock=9;opening=false;chaseStarted=false;previousRunnerX=runner.transform.position.x;
+            bool wasCaught=caught;caught=false;age=gait=lag=missedNetLife=0;cueClock=9;opening=false;chaseStarted=false;previousRunnerX=runner.transform.position.x;
             if(actors[0].CarryNet!=null)actors[0].CarryNet.gameObject.SetActive(true);
             if(actors[1].Tool!=null)actors[1].Tool.localRotation=Quaternion.identity;
             if(stage==null)return;effects.Stop();voices.Stop();pausedSounds=false;net.gameObject.SetActive(false);dart.gameObject.SetActive(false);captive.gameObject.SetActive(false);
@@ -245,6 +277,7 @@ namespace RollingPanda
                 CapturePose();return;
             }
             if(runner.Paused)return;
+            if(missedNetLife>0){missedNetLife-=Time.deltaTime;net.position=missedNetWorld;if(missedNetLife<=0)net.gameObject.SetActive(false);}
             if(!chaseStarted)lag=PoacherRules.Gap(runner.DistanceTravelled,runner.InChute);
             gait=Mathf.Repeat(gait+Time.deltaTime*Mathf.Lerp(10,16,Mathf.InverseLerp(17.5f,40,runner.CurrentSpeed)),Mathf.PI*2);lag=Mathf.MoveTowards(lag,PoacherRules.Gap(runner.DistanceTravelled,runner.InChute),Time.deltaTime*2.5f);
             cueClock-=Time.deltaTime;
