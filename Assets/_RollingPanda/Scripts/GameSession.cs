@@ -6,9 +6,33 @@ namespace RollingPanda
     public sealed class GameSession : MonoBehaviour
     {
         readonly List<BlueGem> gems = new List<BlueGem>();
+        struct PickupToast { public Vector2 Viewport;public float Age;public int Kind,Amount;public string Label;public bool Active; }
+        readonly PickupToast[] toasts=new PickupToast[32];
+        int nextToast;
+        long shownScore=-1,shownMetres=-1;string scoreLabel="",metresLabel="";
+        readonly int[] shownCounts={-1,-1,-1};
+        readonly GUIContent[] counterLabels={new GUIContent(),new GUIContent(),new GUIContent()};
+        RunnerMagnet magnet;
+        RunnerShield shield;
+        RunnerSpecials specials;
+        public float AdjustSpeed(float baseline) => specials==null ? baseline : specials.AdjustSpeed(baseline);
+        public float JumpHeight(float baseline) => specials!=null && specials.BatteryRemaining>0 ? SpecialRules.ChargedJumpHeight : baseline;
+        public bool ShieldActive => shield!=null && ShieldRules.Protects(shield.Remaining);
+        GUIStyle toastStyle;
         RunnerMotor runner;
+        RunnerMovementAudio pickupAudio;
         double distance;
+        bool leaving;
+#if !UNITY_EDITOR && !UNITY_STANDALONE
+        bool menuPressed;
+        Vector2 menuPressPosition;
+#endif
+        GameArt hudArt;
+        Font hudFont;
+        GUIStyle counterStyle, metricStyle, panelStyle, buttonStyle;
+        public bool IsRunning => !RunEntryTransition.Active && runner!=null && !runner.Paused && !runner.Finished && !Defeated;
         public EndlessTrack Track { get; set; }
+        public PoacherPursuit Pursuit { get; set; }
 #if UNITY_EDITOR || UNITY_STANDALONE
         bool previewSafeArea;
 #endif
@@ -21,11 +45,17 @@ namespace RollingPanda
         public void Initialize(RunnerMotor player)
         {
             runner = player; player.Session = this;
+
+            hudArt=Resources.Load<GameArt>("Presentation/GameArt");
+            hudFont=Resources.Load<Font>("Presentation/alagard");
             RunnerInput.BlocksPointer = BlocksPointer;
             RunnerInput.TouchButtonAt = TouchButtonAt;
         }
+        void OnApplicationPause(bool suspended){if(suspended)PlayerProfile.Save();}
+        void OnApplicationQuit(){PlayerProfile.Save();}
         void OnDestroy()
         {
+            PlayerProfile.Save();
             if (RunnerInput.BlocksPointer == BlocksPointer) RunnerInput.BlocksPointer = null;
             if (RunnerInput.TouchButtonAt == TouchButtonAt) RunnerInput.TouchButtonAt = null;
         }
@@ -41,8 +71,47 @@ namespace RollingPanda
             return 0;
         }
 
+        bool CanReturn => runner != null && (Defeated && (Pursuit==null || Pursuit.CaptureComplete) || runner.Paused || runner.Finished);
+        float ResultTop(float height)=>Defeated ? Mathf.Max(82,height-230) : Mathf.Max(82,height*.31f);
+        Rect MenuRect(float width,float height)
+        {
+            float panelWidth=Mathf.Min(430,width-32);
+            return new Rect((width-panelWidth)/2+12,ResultTop(height)+88,panelWidth-24,48);
+        }
+        void SaveBest()
+        {
+            PlayerProfile.Save();
+            long best;
+            long.TryParse(PlayerPrefs.GetString("RollingPanda.BestScore","0"),out best);
+            if(Score>best) { PlayerPrefs.SetString("RollingPanda.BestScore",Score.ToString()); PlayerPrefs.Save(); }
+        }
+        void ReturnToMenu()
+        {
+            if(leaving || !Application.CanStreamedLevelBeLoaded("StartMenu")) return;
+            leaving=true;SaveBest();RunnerInput.Reset();
+            UnityEngine.SceneManagement.SceneManager.LoadSceneAsync("StartMenu");
+        }
         void Update()
         {
+#if !UNITY_EDITOR && !UNITY_STANDALONE
+            var touch=UnityEngine.InputSystem.Touchscreen.current;
+            if(CanReturn && touch!=null)
+            {
+                var t=touch.primaryTouch;Rect safe=SafeArea();float scale=UiScale(safe);
+                if(scale>0)
+                {
+                    Vector2 p=new Vector2((t.position.ReadValue().x-safe.x)/scale,(safe.yMax-t.position.ReadValue().y)/scale);
+                    Rect r=MenuRect(safe.width/scale,safe.height/scale);
+                    if(t.press.wasPressedThisFrame) { menuPressed=r.Contains(p);menuPressPosition=p; }
+                    if(t.press.wasReleasedThisFrame)
+                    {
+                        if(menuPressed && r.Contains(p) && Vector2.Distance(p,menuPressPosition)<24) ReturnToMenu();
+                        menuPressed=false;
+                    }
+                }
+            }
+            else menuPressed=false;
+#endif
 #if UNITY_EDITOR || UNITY_STANDALONE
             var keyboard = UnityEngine.InputSystem.Keyboard.current;
             if (keyboard != null && keyboard.f8Key.wasPressedThisFrame)
@@ -68,28 +137,59 @@ namespace RollingPanda
             if (!safe.Contains(screenPosition)) return true;
             float scale = UiScale(safe);
             float yFromTop = safe.yMax - screenPosition.y;
-            return yFromTop < 178f * scale || yFromTop > safe.height - 80f * scale;
+            if(CanReturn && MenuRect(safe.width/scale,safe.height/scale).Contains(new Vector2((screenPosition.x-safe.x)/scale,yFromTop/scale))) return true;
+            return yFromTop < 90f * scale || yFromTop > safe.height - 80f * scale;
         }
         public void RegisterGem(BlueGem gem) { gems.Add(gem); gem.Initialize(this); }
-        public void CollectGem(PickupKind kind) { if (!Defeated) pickups.Collect(kind); }
+        public void CollectGem(PickupKind kind,Vector3 worldPosition)
+        {
+            if(!IsRunning) return;
+            pickups.Collect(kind);if(kind==PickupKind.Pouch)PlayerProfile.EarnGreen(1);
+            PickupFeedback(kind,worldPosition,1);
+        }
+        public void CollectGold(Vector3 position) {if(!IsRunning) return;pickups.AddPouches(50);PlayerProfile.EarnGreen(50);PickupFeedback(PickupKind.Pouch,position,50);}
+        void PickupFeedback(PickupKind kind,Vector3 worldPosition,int amount)
+        {
+            if(pickupAudio==null && runner!=null)pickupAudio=runner.GetComponent<RunnerMovementAudio>();
+            if(pickupAudio!=null)pickupAudio.Collected(kind);
+            var camera=Camera.main;
+            if(camera!=null)
+            {
+                Vector3 p=camera.WorldToViewportPoint(worldPosition);
+                if(p.z>0) {toasts[nextToast]=new PickupToast{Viewport=p,Kind=(int)kind,Amount=amount,Label=amount==1 ? "+1" : "+"+amount,Active=true};nextToast=(nextToast+1)%toasts.Length;}
+            }
+        }
 
         void LateUpdate()
         {
+            if(specials==null && Track!=null) {specials=gameObject.AddComponent<RunnerSpecials>();specials.Initialize(runner,this);}
+            if(shield==null && Track!=null) {shield=gameObject.AddComponent<RunnerShield>();shield.Initialize(runner,this);}
+            if(magnet==null && Track!=null) {magnet=gameObject.AddComponent<RunnerMagnet>();magnet.Initialize(runner,this,gems);}
+            if(IsRunning) for(int i=0;i<toasts.Length;i++) if(toasts[i].Active)
+            {toasts[i].Age+=Time.deltaTime;if(toasts[i].Age>=.7f) toasts[i].Active=false;}
             if (runner != null && !runner.Paused)
                 distance = System.Math.Max(distance, runner.DistanceTravelled);
         }
 
+        public void HitObstacle(string reason) { if(!ShieldActive) Fail(reason); }
+
         public void Fail(string reason)
         {
-            if (Defeated) return;
+            if (Defeated || runner!=null && runner.InChute) return;
             distance = System.Math.Max(distance, runner.DistanceTravelled);
             Defeated = true;
             DefeatReason = reason;
+            var audio=runner.GetComponent<RunnerMovementAudio>();if(audio!=null)audio.ReactToDefeat();
+            SaveBest();
+            if(Pursuit!=null)Pursuit.Caught();
         }
 
         public void ResetRun()
         {
+            PlayerProfile.Save();
             Defeated = false;
+            if(Pursuit!=null)Pursuit.ResetPursuit();
+            System.Array.Clear(toasts,0,toasts.Length);nextToast=0;if(specials!=null) specials.ResetPowerups();if(shield!=null) shield.ResetPowerup();if(magnet!=null) magnet.ResetPowerup();
             DefeatReason = null;
             pickups.Reset();
             distance = 0f;
@@ -99,29 +199,96 @@ namespace RollingPanda
 
         void OnGUI()
         {
-            if (runner == null) return;
-            var previous = GUI.matrix;
-            Rect safe = SafeArea();
-            float scale = UiScale(safe);
-            if (scale <= 0f) return;
-            float width = safe.width / scale, height = safe.height / scale;
-            GUI.matrix = Matrix4x4.TRS(new Vector3(safe.x, Screen.height - safe.yMax, 0), Quaternion.identity, new Vector3(scale, scale, 1));
-            var label = new GUIStyle(GUI.skin.label) { fontSize = 16, wordWrap = true };
-            var button = new GUIStyle(GUI.skin.button) { fontSize = 18 };
-            GUI.Box(new Rect(8, 8, width - 16, 162), "Rolling Panda");
-            GUI.Label(new Rect(18, 34, width - 36, 26), $"Score {Score}     {(long)distance} m", label);
-            GUI.Label(new Rect(18, 62, width - 36, 43), $"Blue {pickups.Blue}   Red {pickups.Red}   Pouches {pickups.Pouches}", label);
-            GUI.Label(new Rect(18, 105, width - 36, 22), "Swipe: left/right lanes • up jump • down slide", label);
-            string state = Defeated ? "Run ended — " + DefeatReason : runner.Finished ? "Course complete!" : runner.Paused ? "Paused — P to resume" : runner.Endless ? $"Endless run — speed {runner.CurrentSpeed:0.0} m/s" : "Running — each gem adds 10 points";
-            GUI.Label(new Rect(18, 130, width - 36, 38), state, label);
-            GUI.Box(new Rect(8, height - 76, width - 16, 68), "");
-            bool restartClicked = GUI.Button(new Rect(16, height - 68, (width - 40) / 2, 52), "Restart", button);
-            bool pauseClicked = GUI.Button(new Rect(24 + (width - 40) / 2, height - 68, (width - 40) / 2, 52), runner.Paused ? "Resume" : "Pause", button);
+            if(runner==null || RunEntryTransition.Active) return;
+            Rect safe=SafeArea();float scale=UiScale(safe);if(scale<=0) return;
+            if(counterStyle==null)
+            {
+                counterStyle=new GUIStyle(GUI.skin.label){font=hudFont,fontSize=18,alignment=TextAnchor.MiddleLeft,wordWrap=false};
+                metricStyle=new GUIStyle(counterStyle){fontSize=18,alignment=TextAnchor.MiddleRight};
+                panelStyle=new GUIStyle(counterStyle){fontSize=19,alignment=TextAnchor.MiddleCenter,wordWrap=true};
+                toastStyle=new GUIStyle(counterStyle){fontSize=14,alignment=TextAnchor.MiddleCenter};
+                buttonStyle=new GUIStyle(GUI.skin.button){font=hudFont,fontSize=22};
+            }
+            Matrix4x4 previous=GUI.matrix;
+            float width=safe.width/scale,height=safe.height/scale;
+            GUI.matrix=Matrix4x4.TRS(new Vector3(safe.x,Screen.height-safe.yMax,0),Quaternion.identity,new Vector3(scale,scale,1));
+            GUI.Box(new Rect(10,10,204,74),"");
+            DrawCounter(18,pickups.Blue,0);DrawCounter(82,pickups.Red,1);DrawCounter(146,pickups.Pouches,2);
+            long score=Score,metres=(long)distance;
+            if(shownScore!=score){shownScore=score;scoreLabel="Score "+score;}
+            if(shownMetres!=metres){shownMetres=metres;metresLabel=metres+" m";}
+            GUI.Label(new Rect(18,49,188,28),scoreLabel,counterStyle);
+            float right=width-12;
+            GUI.Label(new Rect(right-142,15,134,32),metresLabel,metricStyle);
+            if(Defeated && (Pursuit==null || Pursuit.CaptureComplete) || runner.Paused || runner.Finished)
+            {
+                float panelWidth=Mathf.Min(430,width-32),left=(width-panelWidth)/2,top=ResultTop(height);
+                GUI.Box(new Rect(left,top,panelWidth,150),"");
+                string state=Defeated ? (Pursuit==null ? "Run ended" : "Caught by poachers") : runner.Finished ? "Course complete!" : "Paused";
+                GUI.Label(new Rect(left+12,top+10,panelWidth-24,30),state,panelStyle);
+                GUI.Label(new Rect(left+12,top+44,panelWidth-24,38),Defeated ? DefeatReason : "Swipe left/right: lanes   Up: jump   Down: roll",panelStyle);
+                bool menuClicked=GUI.Button(MenuRect(width,height),"Main menu",buttonStyle);
 #if UNITY_EDITOR || UNITY_STANDALONE
-            if (restartClicked) runner.Restart();
-            if (pauseClicked) runner.TogglePause();
+                if(menuClicked) ReturnToMenu();
 #endif
-            GUI.matrix = previous;
+            }
+            bool restartClicked=GUI.Button(new Rect(16,height-68,(width-40)/2,52),"Restart",buttonStyle);
+            bool pauseClicked=GUI.Button(new Rect(24+(width-40)/2,height-68,(width-40)/2,52),runner.Paused ? "Resume" : "Pause",buttonStyle);
+#if UNITY_EDITOR || UNITY_STANDALONE
+            if(restartClicked) runner.Restart();
+            if(pauseClicked) runner.TogglePause();
+#endif
+            if(magnet!=null && magnet.Remaining>0)
+                GUI.Label(new Rect(18,87,205,25),"Magnet  "+Mathf.CeilToInt(magnet.Remaining)+"s",counterStyle);
+            if(shield!=null && shield.Remaining>0)
+                GUI.Label(new Rect(18,magnet!=null && magnet.Remaining>0 ? 112 : 87,205,25),"Shield  "+Mathf.CeilToInt(shield.Remaining)+"s",counterStyle);
+            if(specials!=null)
+            {
+                float y=87+(magnet!=null && magnet.Remaining>0 ? 25 : 0)+(shield!=null && shield.Remaining>0 ? 25 : 0);
+                if(specials.SpeedRemaining>0) {GUI.Label(new Rect(18,y,240,25),(specials.SpeedKind==SpecialKind.Speed ? "Boost 50m/s  " : "Time 10m/s  ")+specials.SpeedRemaining.ToString("0.0")+"s",counterStyle);y+=25;}
+                if(specials.BatteryRemaining>0) GUI.Label(new Rect(18,y,240,25),"High jumps  "+Mathf.CeilToInt(specials.BatteryRemaining)+"s",counterStyle);
+            }
+            if(runner.InChute)GUI.Label(new Rect(width*.5f-110,height-105,220,28),"Bamboo chute: protected",panelStyle);
+            DrawToasts(safe,scale);
+            GUI.matrix=previous;
+        }
+        void DrawToasts(Rect safe,float scale)
+        {
+            Color before=GUI.color;
+            for(int i=0;i<toasts.Length;i++)
+            {
+                var t=toasts[i];if(!t.Active) continue;
+                Vector2 start=new Vector2((t.Viewport.x*Screen.width-safe.x)/scale,(safe.yMax-t.Viewport.y*Screen.height)/scale);
+                Vector2 lift=start+Vector2.up*22;
+                Vector2 target=new Vector2(t.Kind==0 ? 32 : t.Kind==1 ? 96 : 160,32);
+                Vector2 p=t.Age<.16f ? Vector2.Lerp(start,lift,t.Age/.16f) : Vector2.Lerp(lift,target,Mathf.SmoothStep(0,1,(t.Age-.16f)/.54f));
+                Color color=t.Kind==0 ? new Color(.35f,.85f,1) : t.Kind==1 ? new Color(1,.35f,.4f) : new Color(.4f,1,.5f);
+                color.a=1-Mathf.InverseLerp(.55f,.7f,t.Age);GUI.color=color;
+                GUI.Label(new Rect(p.x-23,p.y-10,46,20),t.Label,toastStyle);
+            }
+            GUI.color=before;
+        }
+        void DrawCounter(float x,int count,int kind)
+        {
+            Texture2D icon=hudArt==null ? null : hudArt.Icon(kind);
+            if(icon!=null) GUI.DrawTexture(new Rect(x,16,28,32),icon,ScaleMode.ScaleToFit,true);
+            else
+            {
+                Color previous=GUI.color;GUI.color=kind==0 ? Color.cyan : kind==1 ? Color.red : Color.green;
+                GUI.Label(new Rect(x,17,28,30),"*",counterStyle);GUI.color=previous;
+            }
+            if(shownCounts[kind]!=count)
+            {
+                shownCounts[kind]=count;counterLabels[kind].text=count>=10000 ? (count/1000f).ToString("0.#")+"k" : count.ToString();
+                counterLabels[kind].tooltip=count.ToString();
+            }
+            GUI.Label(new Rect(x+29,16,35,32),counterLabels[kind],counterStyle);
         }
     }
 }
+
+
+
+
+
+

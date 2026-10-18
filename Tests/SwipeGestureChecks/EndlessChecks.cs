@@ -26,9 +26,21 @@ static class EndlessChecks
                 double rowDistance = EndlessRules.Start(section) + EndlessRules.RowOffset(section, row);
                 if (section > 0 && row < EndlessRules.RowCount(section))
                 {
-                    if (rowDistance < 150 && count != 1) throw new Exception("Opening difficulty changed");
+                    if (rowDistance < 300 && count != 1) throw new Exception("Opening difficulty changed");
                     if (rowDistance >= 300 && count != 2) throw new Exception("Advanced row too easy");
                 }
+                for(int slot=0;slot<count;slot++)
+                {
+                    int kind=EndlessRules.ObstacleKind(section,row,slot);
+                    if(rowDistance<800 && kind!=1) throw new Exception("Early obstacle type");
+                    if(rowDistance<1500 && kind==0) throw new Exception("Early large rock");
+                }
+                if(rowDistance>=800 && count==2 && EndlessRules.ObstacleKind(section,row,0)==EndlessRules.ObstacleKind(section,row,1))
+                    throw new Exception("Duplicate advanced obstacle kinds");
+                double intermediateDistance=EndlessRules.Start(section)+48+row*48;
+                int intermediateKind=EndlessRules.IntermediateKind(section,row);
+                if(intermediateDistance<800 && intermediateKind!=1 || intermediateDistance<1500 && intermediateKind==0)
+                    throw new Exception("Early intermediate obstacle type");
                 int gemSlot = EndlessRules.GemObstacleSlot(section, row);
                 if (rowDistance <= 300 && gemSlot != -1) throw new Exception("Risk gems before introduction");
                 if (gemSlot >= 0)
@@ -51,11 +63,19 @@ static class EndlessChecks
         for (int distance = 0; distance <= 100000; distance++)
         {
             float speed = EndlessRules.Speed(distance);
-            if (speed < 15 || speed > 32 || speed < previous) throw new Exception("Unsafe speed ramp");
+            if (speed < 17.5f || speed > 40 || speed < previous) throw new Exception("Unsafe speed ramp");
             previous = speed;
         }
-        if (EndlessRules.Speed(0) != 15 || EndlessRules.Speed(2550) != 32 || EndlessRules.Speed(double.MaxValue) != 32)
+        if (EndlessRules.Speed(0) != 17.5f || EndlessRules.Speed(3375) != 40 || EndlessRules.Speed(double.MaxValue) != 40)
             throw new Exception("Speed endpoints changed");
+        for(int pattern=0;pattern<9;pattern++)
+        {
+            if(EndlessRules.KindAt(799.999,pattern,0,1)!=1 || EndlessRules.KindAt(800,pattern,0,1)==0 ||
+                EndlessRules.KindAt(1499.999,pattern,0,1)==0)
+                throw new Exception("Obstacle unlock boundary regression");
+        }
+        if(EndlessRules.KindAt(800,1,0,1)!=2 || EndlessRules.KindAt(1500,0,0,1)!=0)
+            throw new Exception("Unlock type coverage missing");
         double previousRow = -100;
         for (long section = 1; section < 10000; section++)
             for (int row = 0; row < EndlessRules.RowCount(section); row++)
@@ -131,3 +151,4 @@ static class EndlessChecks
         Console.WriteLine("Endless rules passed: 30,000 row slots, intermediate routes, collectible thresholds/values/reset, 100,001 speed samples, 100 km pool/rebase simulation.");
     }
 }
+

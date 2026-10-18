@@ -29,6 +29,8 @@ namespace RollingPanda
             previousTargetPosition = target.position;
         }
 
+        public void RestoreChase(){if(target!=null){Snap();previousTargetPosition=target.position;}}
+
         void Snap()
         {
             transform.position = new Vector3(target.position.x * 0.3f, 0f, target.position.z) + offset;

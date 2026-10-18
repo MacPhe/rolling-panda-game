@@ -23,6 +23,7 @@ namespace RollingPanda
             else if (kind == PickupKind.Red) Red++;
             else Pouches++;
         }
+        public void AddPouches(int amount) { if(amount>0) Pouches+=amount; }
         public void Reset() { Blue = 0; Red = 0; Pouches = 0; }
     }
 }
