@@ -7,7 +7,7 @@ namespace RollingPanda
     {
         RunnerMotor runner;CharacterController capsule;
         MovementAudioArt clips;AudioSource steps,action,music,jungle;
-        bool musicStarted,musicPaused;
+        bool musicStarted,musicPaused;float musicEnvelope,jungleEnvelope;
         AudioSource voice;AudioClip[] voiceClips;float voiceCooldown;bool defeatVoice;
         readonly AudioSource[] pickupSources=new AudioSource[3];
         readonly AudioClip[] pickupClips=new AudioClip[3];
@@ -105,6 +105,9 @@ namespace RollingPanda
         void LateUpdate()
         {
             if(runner==null) return;
+            float effectsGain=GameAudioSettings.Effects;
+            steps.volume=.063f*effectsGain;action.volume=.25f*effectsGain;voice.volume=.25f*effectsGain;
+            foreach(var source in pickupSources)source.volume=.65f*effectsGain;
             double distance=runner.DistanceTravelled;bool active=CanPlay;
             UpdateMusic(distance<previousDistance);
             if(active)voiceCooldown=Mathf.Max(0,voiceCooldown-Time.deltaTime);
@@ -131,7 +134,7 @@ namespace RollingPanda
         {
             if(music!=null){music.Stop();music.volume=0;}
             if(jungle!=null){jungle.Stop();jungle.volume=0;}
-            musicStarted=false;musicPaused=false;
+            musicStarted=false;musicPaused=false;musicEnvelope=jungleEnvelope=0;
         }
         void UpdateMusic(bool restarted)
         {
@@ -146,14 +149,16 @@ namespace RollingPanda
             if(music!=null && music.clip!=null)
             {
                 if(!musicStarted){music.Play();musicStarted=true;}
-                music.volume=Mathf.MoveTowards(music.volume,Mathf.Clamp01(clips.PercussionVolume),Time.unscaledDeltaTime*.25f);
+                musicEnvelope=Mathf.MoveTowards(musicEnvelope,Mathf.Clamp01(clips.PercussionVolume),Time.unscaledDeltaTime*.25f);
+                music.volume=musicEnvelope*GameAudioSettings.Music;
             }
             if(jungle!=null && jungle.clip!=null)
             {
                 float target=.12f*RunAtmosphere.MistAt(runner.DistanceTravelled);
                 if(target>0 && !jungle.isPlaying)jungle.Play();
-                jungle.volume=Mathf.MoveTowards(jungle.volume,target,Time.unscaledDeltaTime*.04f);
-                if(target<=0 && jungle.volume<=0)jungle.Stop();
+                jungleEnvelope=Mathf.MoveTowards(jungleEnvelope,target,Time.unscaledDeltaTime*.04f);
+                jungle.volume=jungleEnvelope*GameAudioSettings.Music;
+                if(target<=0 && jungleEnvelope<=0)jungle.Stop();
             }
         }
         static AudioClip BuildSwoosh()

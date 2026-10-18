@@ -3,6 +3,13 @@ namespace RollingPanda
 {
     public static class PoacherRules
     {
+        // Unequal overlapping waves avoid a metronomic chase; distance survives world rebasing.
+        public static float Pressure(double distance)
+        {
+            double wave=.5+.35*Math.Sin(distance*Math.PI*2/1100)+.15*Math.Sin(distance*Math.PI*2/470);
+            return (float)Math.Max(0,Math.Min(1,wave));
+        }
+        public static float Gap(double distance,bool sheltered)=>sheltered ? 15 : 14-12*Pressure(distance);
         public const float CaptureDuration=3.6f;
         public static float Progress(float age,float start,float end)
         {

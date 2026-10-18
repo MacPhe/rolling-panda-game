@@ -105,7 +105,7 @@ namespace RollingPanda
                 var material = kind == 0 ? bandMaterial : kind == 1 ? hurdleMaterial : beamMaterial;
                 var obstacle = MakeCube(kind == 0 ? "Dodge block" : kind == 1 ? "Jump hurdle" : "Slide beam",
                     new Vector3(lane * RunnerMotor.LaneSpacing, y, z), new Vector3(2.2f, height, 1.2f), material, true);
-                obstacle.AddComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge red blocks" : kind == 1 ? "Jump gold hurdles" : "Roll under lanterns";
+                obstacle.AddComponent<RunnerObstacle>().Instruction = kind == 0 ? "Dodge large rocks" : kind == 1 ? "Jump over small rocks" : "Roll under lanterns";
                 int safeLane = lane == 1 ? 0 : lane + 1;
                 foreach (float offset in new[] { -12f, -8f, -4f, 4f, 8f })
                 {

@@ -5,6 +5,16 @@ static class Program
     static void Check(bool pass,string text){if(!pass)throw new Exception(text);}
     static void Main()
     {
+        double min=1,max=0;float prior=PoacherRules.Pressure(0);
+        for(int metre=0;metre<100000;metre++)
+        {
+            float pressure=PoacherRules.Pressure(metre);min=Math.Min(min,pressure);max=Math.Max(max,pressure);
+            Check(pressure>=0 && pressure<=1,"Bounded pursuit pressure");
+            Check(Math.Abs(pressure-prior)<.005,"No chase discontinuity at rebase or cycle boundary");prior=pressure;
+            Check(PoacherRules.Gap(metre,false)>=2 && PoacherRules.Gap(metre,false)<=14,"Chase stays behind panda");
+            Check(PoacherRules.Gap(metre,true)==15,"Chute creates breathing room");
+        }
+        Check(min<.02 && max>.98,"Pursuit includes hot and cold periods");
         Check(PoacherRules.Net(.64f)==0 && PoacherRules.Net(1.4f)==1,"Net timing");
         Check(PoacherRules.Dart(1.84f)==0 && PoacherRules.Dart(2.1f)==1,"Dart timing");
         Check(PoacherRules.Sleep(2.1f)==0 && PoacherRules.Sleep(2.8f)==1,"Sleep follows dart");

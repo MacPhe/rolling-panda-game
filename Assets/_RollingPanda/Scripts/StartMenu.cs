@@ -29,19 +29,23 @@ namespace RollingPanda
         int pressed = -1;
         Vector2 pressPosition;
 #endif
-        float volume;
+#if !UNITY_EDITOR && !UNITY_STANDALONE
+        int draggingSlider=-1;
+#endif
+        static readonly string[] AudioLabels={"Overall","Music","Sound effects","Ambient sounds"};
+        float menuEnvelope;
         float Width, Height, Scale;
         Rect safe;
         bool Wide => Width > Height * 1.2f;
         float Left => Wide ? Width * .61f : 24;
         float PanelWidth => Wide ? Width * .35f : Width - 48;
-        float Top => Wide ? Height * .24f : Height * .49f;
+        float Top => panel=="Settings" ? Mathf.Max(18,Mathf.Min(Wide ? Height*.12f : Height*.38f,Height-400)) : Wide ? Height * .24f : Height * .49f;
 
         void Awake()
         {
             font = Resources.Load<Font>("Presentation/alagard");
-            volume = PlayerPrefs.GetFloat("RollingPanda.Volume", 1);
-            AudioListener.volume = volume;
+            GameAudioSettings.Get(0);
+            gameObject.AddComponent<ForestAmbience>();
             RunnerInput.Reset();
             entrance=new GameObject("Forest entrance hold").AddComponent<RunEntryTransition>();
             environment=Resources.Load<EnvironmentArt>("Presentation/EnvironmentArt");
@@ -64,6 +68,7 @@ namespace RollingPanda
             world.SetActive(true);
             chaseCamera=view.GetComponent<RunnerCamera>();chaseCamera.enabled=false;
             gameRunner=world.GetComponentInChildren<RunnerMotor>();
+            GetComponent<ForestAmbience>().Bind(gameRunner);
             foreach(var wind in GetComponentsInChildren<ForestWind>()) wind.Bind(gameRunner);
             yield return null;
             yield return null;
@@ -86,7 +91,8 @@ namespace RollingPanda
         Rect Row(int i) => new Rect(Left, Top + 80 + i * 58, PanelWidth, 50);
         void Update()
         {
-            if(menuMusic!=null)menuMusic.volume=Mathf.MoveTowards(menuMusic.volume,loading ? 0 : .28f,Time.unscaledDeltaTime*.4f);
+            menuEnvelope=Mathf.MoveTowards(menuEnvelope,loading ? 0 : .28f,Time.unscaledDeltaTime*.4f);
+            if(menuMusic!=null)menuMusic.volume=menuEnvelope*GameAudioSettings.Music;
             Layout();
             if(shopPreview!=null)
             {
@@ -111,6 +117,16 @@ namespace RollingPanda
             if (touch == null || loading) return;
             var t = touch.primaryTouch;
             Vector2 p = new Vector2((t.position.ReadValue().x-safe.x)/Scale, (safe.yMax-t.position.ReadValue().y)/Scale);
+            if(panel=="Settings")
+            {
+                if(t.press.wasPressedThisFrame)for(int i=0;i<4;i++)if(SliderHit(i).Contains(p)){draggingSlider=i;pressed=-1;break;}
+                if(draggingSlider>=0)
+                {
+                    Rect rail=SliderRail(draggingSlider);GameAudioSettings.Set(draggingSlider,(p.x-rail.x)/rail.width);
+                    if(t.press.wasReleasedThisFrame){draggingSlider=-1;GameAudioSettings.Save();}
+                    return;
+                }
+            }
             if (t.press.wasPressedThisFrame) { pressed = Hit(p); pressPosition = p; }
             if (t.press.wasReleasedThisFrame)
             {
@@ -122,7 +138,8 @@ namespace RollingPanda
         }
         int Hit(Vector2 p)
         {
-            for (int i=0; i<(panel=="" ? 4 : panel=="Settings" ? 3 : panel=="Shop" ? 4 : 1); i++)
+            if(panel=="Settings")return Row(4).Contains(p) ? 4 : -1;
+            for (int i=0; i<(panel=="" ? 4 : panel=="Shop" ? 4 : 1); i++)
                 if (Row(i).Contains(p)) return i;
             return -1;
         }
@@ -137,12 +154,8 @@ namespace RollingPanda
                 }
                 else panel = i==1 ? "Settings" : i==2 ? "Leaderboards" : "Shop";
             }
-            else if (panel=="Settings" && i<2)
-            {
-                volume=Mathf.Clamp01(volume+(i==0 ? -.1f : .1f));
-                AudioListener.volume=volume;
-                PlayerPrefs.SetFloat("RollingPanda.Volume",volume); PlayerPrefs.Save();
-            }
+            else if (panel=="Settings")
+            {GameAudioSettings.Save();panel="";}
             else if(panel=="Shop")
             {
                 if(i==0) shopPreview.Turn(-45);
@@ -241,7 +254,7 @@ namespace RollingPanda
             }
             var previous=GUI.matrix;
             GUI.matrix=Matrix4x4.TRS(new Vector3(safe.x,Screen.height-safe.yMax,0),Quaternion.identity,new Vector3(Scale,Scale,1));
-            GUI.Box(new Rect(Left-12,Top-8,PanelWidth+24,panel=="" || panel=="Shop" ? 390 : 290),"");
+            GUI.Box(new Rect(Left-12,Top-8,PanelWidth+24,panel=="" || panel=="Shop" || panel=="Settings" ? 390 : 290),"");
             GUI.Label(new Rect(Left,Top,PanelWidth,52),panel=="" ? "Rolling Panda" : panel,title);
             if(panel=="")
             {
@@ -250,8 +263,19 @@ namespace RollingPanda
             }
             else if(panel=="Settings")
             {
-                GUI.Label(new Rect(Left,Top+50,PanelWidth,26),"Master volume  "+Mathf.RoundToInt(volume*100)+"%",text);
-                DrawButton(0,"Volume -");DrawButton(1,"Volume +");DrawButton(2,"Back");
+                for(int i=0;i<4;i++)
+                {
+                    float level=GameAudioSettings.Get(i);
+                    GUI.Label(new Rect(Left,Top+53+i*58,PanelWidth,26),AudioLabels[i]+"  "+Mathf.RoundToInt(level*100)+"%",text);
+#if UNITY_EDITOR || UNITY_STANDALONE
+                    float next=GUI.HorizontalSlider(SliderRail(i),level,0,1);
+                    if(next!=level)GameAudioSettings.Set(i,next);
+#else
+                    GUI.HorizontalSlider(SliderRail(i),level,0,1);
+#endif
+                }
+                if(Event.current.type==EventType.MouseUp)GameAudioSettings.Save();
+                DrawButton(4,"Back");
             }
             else if(panel=="Shop")
             {
@@ -269,6 +293,8 @@ namespace RollingPanda
 
             GUI.matrix=previous;
         }
+        Rect SliderRail(int i)=>new Rect(Left+12,Top+84+i*58,PanelWidth-24,20);
+        Rect SliderHit(int i)=>new Rect(Left,Top+78+i*58,PanelWidth,40);
         void DrawButton(int i,string label)
         {
             GUI.enabled=!loading && ready;
@@ -432,7 +458,7 @@ namespace RollingPanda
             var emission=ps.emission;emission.rateOverTime=5;var shape=ps.shape;shape.shapeType=ParticleSystemShapeType.Box;shape.scale=new Vector3(7,.2f,3);
             var pm=new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));materials.Add(pm);pm.SetColor("_BaseColor",new Color(1,.7f,.8f));ps.GetComponent<ParticleSystemRenderer>().sharedMaterial=pm;
         }
-        void OnDisable(){if(menuMusic!=null)menuMusic.Stop();}
+        void OnDisable(){GameAudioSettings.Save();if(menuMusic!=null)menuMusic.Stop();}
         void OnDestroy()
         {
             foreach(var m in materials) Destroy(m);

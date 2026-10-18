@@ -6,9 +6,12 @@ namespace RollingPanda
     public sealed class GameSession : MonoBehaviour
     {
         readonly List<BlueGem> gems = new List<BlueGem>();
-        struct PickupToast { public Vector2 Viewport;public float Age;public int Kind,Amount;public bool Active; }
+        struct PickupToast { public Vector2 Viewport;public float Age;public int Kind,Amount;public string Label;public bool Active; }
         readonly PickupToast[] toasts=new PickupToast[32];
         int nextToast;
+        long shownScore=-1,shownMetres=-1;string scoreLabel="",metresLabel="";
+        readonly int[] shownCounts={-1,-1,-1};
+        readonly GUIContent[] counterLabels={new GUIContent(),new GUIContent(),new GUIContent()};
         RunnerMagnet magnet;
         RunnerShield shield;
         RunnerSpecials specials;
@@ -66,10 +69,11 @@ namespace RollingPanda
         }
 
         bool CanReturn => runner != null && (Defeated && (Pursuit==null || Pursuit.CaptureComplete) || runner.Paused || runner.Finished);
+        float ResultTop(float height)=>Defeated ? Mathf.Max(82,height-230) : Mathf.Max(82,height*.31f);
         Rect MenuRect(float width,float height)
         {
             float panelWidth=Mathf.Min(430,width-32);
-            return new Rect((width-panelWidth)/2+12,Mathf.Max(82,height*.31f)+88,panelWidth-24,48);
+            return new Rect((width-panelWidth)/2+12,ResultTop(height)+88,panelWidth-24,48);
         }
         void SaveBest()
         {
@@ -148,7 +152,7 @@ namespace RollingPanda
             if(camera!=null)
             {
                 Vector3 p=camera.WorldToViewportPoint(worldPosition);
-                if(p.z>0) {toasts[nextToast]=new PickupToast{Viewport=p,Kind=(int)kind,Amount=amount,Active=true};nextToast=(nextToast+1)%toasts.Length;}
+                if(p.z>0) {toasts[nextToast]=new PickupToast{Viewport=p,Kind=(int)kind,Amount=amount,Label=amount==1 ? "+1" : "+"+amount,Active=true};nextToast=(nextToast+1)%toasts.Length;}
             }
         }
 
@@ -205,12 +209,15 @@ namespace RollingPanda
             GUI.matrix=Matrix4x4.TRS(new Vector3(safe.x,Screen.height-safe.yMax,0),Quaternion.identity,new Vector3(scale,scale,1));
             GUI.Box(new Rect(10,10,204,74),"");
             DrawCounter(18,pickups.Blue,0);DrawCounter(82,pickups.Red,1);DrawCounter(146,pickups.Pouches,2);
-            GUI.Label(new Rect(18,49,188,28),$"Score {Score}",counterStyle);
+            long score=Score,metres=(long)distance;
+            if(shownScore!=score){shownScore=score;scoreLabel="Score "+score;}
+            if(shownMetres!=metres){shownMetres=metres;metresLabel=metres+" m";}
+            GUI.Label(new Rect(18,49,188,28),scoreLabel,counterStyle);
             float right=width-12;
-            GUI.Label(new Rect(right-142,15,134,32),$"{(long)distance} m",metricStyle);
+            GUI.Label(new Rect(right-142,15,134,32),metresLabel,metricStyle);
             if(Defeated && (Pursuit==null || Pursuit.CaptureComplete) || runner.Paused || runner.Finished)
             {
-                float panelWidth=Mathf.Min(430,width-32),left=(width-panelWidth)/2,top=Mathf.Max(82,height*.31f);
+                float panelWidth=Mathf.Min(430,width-32),left=(width-panelWidth)/2,top=ResultTop(height);
                 GUI.Box(new Rect(left,top,panelWidth,150),"");
                 string state=Defeated ? (Pursuit==null ? "Run ended" : "Caught by poachers") : runner.Finished ? "Course complete!" : "Paused";
                 GUI.Label(new Rect(left+12,top+10,panelWidth-24,30),state,panelStyle);
@@ -252,7 +259,7 @@ namespace RollingPanda
                 Vector2 p=t.Age<.16f ? Vector2.Lerp(start,lift,t.Age/.16f) : Vector2.Lerp(lift,target,Mathf.SmoothStep(0,1,(t.Age-.16f)/.54f));
                 Color color=t.Kind==0 ? new Color(.35f,.85f,1) : t.Kind==1 ? new Color(1,.35f,.4f) : new Color(.4f,1,.5f);
                 color.a=1-Mathf.InverseLerp(.55f,.7f,t.Age);GUI.color=color;
-                GUI.Label(new Rect(p.x-23,p.y-10,46,20),"+"+t.Amount,toastStyle);
+                GUI.Label(new Rect(p.x-23,p.y-10,46,20),t.Label,toastStyle);
             }
             GUI.color=before;
         }
@@ -265,8 +272,12 @@ namespace RollingPanda
                 Color previous=GUI.color;GUI.color=kind==0 ? Color.cyan : kind==1 ? Color.red : Color.green;
                 GUI.Label(new Rect(x,17,28,30),"*",counterStyle);GUI.color=previous;
             }
-            string display=count>=10000 ? (count/1000f).ToString("0.#")+"k" : count.ToString();
-            GUI.Label(new Rect(x+29,16,35,32),new GUIContent(display,count.ToString()),counterStyle);
+            if(shownCounts[kind]!=count)
+            {
+                shownCounts[kind]=count;counterLabels[kind].text=count>=10000 ? (count/1000f).ToString("0.#")+"k" : count.ToString();
+                counterLabels[kind].tooltip=count.ToString();
+            }
+            GUI.Label(new Rect(x+29,16,35,32),counterLabels[kind],counterStyle);
         }
     }
 }

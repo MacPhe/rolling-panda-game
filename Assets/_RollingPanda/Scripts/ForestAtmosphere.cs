@@ -229,7 +229,7 @@ namespace RollingPanda
             foreach(var group in groups)
             {
                 var mesh=new Mesh(); mesh.indexFormat=UnityEngine.Rendering.IndexFormat.UInt32;
-                mesh.CombineMeshes(group.Value.ToArray(),true,true); ownedMeshes.Add(mesh);
+                mesh.CombineMeshes(group.Value.ToArray(),true,true);mesh.UploadMeshData(true); ownedMeshes.Add(mesh);
                 var go=new GameObject("Batched forest scenery"); go.transform.SetParent(root,false);
                 go.AddComponent<MeshFilter>().sharedMesh=mesh;
                 var renderer=go.AddComponent<MeshRenderer>(); renderer.sharedMaterial=group.Key;

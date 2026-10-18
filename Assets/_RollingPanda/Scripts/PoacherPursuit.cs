@@ -27,8 +27,9 @@ namespace RollingPanda
         Camera view;RunnerCamera chase;
         Transform captiveHead,leftArm,rightArm,leftLeg,rightLeg;
         AudioSource effects,voices;AudioClip[] sounds;Mesh ropeMesh;
-        float age,gait,lag;bool caught,opening,netPlayed,dartPlayed,oldChaseEnabled,pausedSounds;
-        Vector3 cameraStart;Quaternion cameraRotation;
+        float age,gait,lag,cueClock=9;bool caught,opening,netPlayed,dartPlayed,oldChaseEnabled,pausedSounds;
+        Vector3 cameraStart,captureCameraOffset;Quaternion cameraRotation;
+        readonly RaycastHit[] cameraHits=new RaycastHit[32];
         public bool CaptureComplete=>caught && PoacherRules.Complete(age);
         Material cloth,skin,boots,rope,metal;
         public void Initialize(RunnerMotor player,Transform character)
@@ -56,7 +57,7 @@ namespace RollingPanda
             var bones=new[]{captiveHead,leftArm,rightArm,leftLeg,rightLeg};
             for(int i=0;i<capturedBones.Length;i++)capturedBones[i].Bone=bones[i];
             ResetCaptive();SetEyes(false);captive.gameObject.SetActive(false);
-            net=new GameObject("Thrown capture net").transform;net.SetParent(stage,false);net.gameObject.AddComponent<MeshFilter>().sharedMesh=ropeMesh;net.gameObject.AddComponent<MeshRenderer>().sharedMaterial=rope;net.gameObject.SetActive(false);
+            net=new GameObject("Thrown capture net").transform;net.SetParent(stage,false);net.gameObject.AddComponent<MeshFilter>().sharedMesh=BuildNet(true);net.gameObject.AddComponent<MeshRenderer>().sharedMaterial=rope;net.gameObject.SetActive(false);
             dart=new GameObject("Small sleep dart cue").transform;dart.SetParent(stage,false);
             Part(dart,"Dart shaft",PrimitiveType.Cylinder,Vector3.zero,new Vector3(.018f,.13f,.018f),boots).localRotation=Quaternion.Euler(90,0,0);
             Part(dart,"Turquoise dart feather",PrimitiveType.Cube,new Vector3(0,0,-.12f),new Vector3(.11f,.035f,.08f),metal);dart.gameObject.SetActive(false);
@@ -205,12 +206,12 @@ namespace RollingPanda
             captive.gameObject.SetActive(true);panda.gameObject.SetActive(false);SetEyes(false);
             for(int i=0;i<2;i++){captureStarts[i]=actors[i].Root.localPosition;captureRotations[i]=actors[i].Root.localRotation;}
             net.gameObject.SetActive(false);dart.gameObject.SetActive(false);
-            if(view!=null){cameraStart=view.transform.position;cameraRotation=view.transform.rotation;}
+            if(view!=null){cameraStart=view.transform.position;cameraRotation=view.transform.rotation;captureCameraOffset=CaptureView();}
             if(chase!=null){oldChaseEnabled=chase.enabled;chase.enabled=false;}
         }
         public void ResetPursuit()
         {
-            bool wasCaught=caught;caught=false;age=gait=lag=0;opening=false;chaseStarted=false;previousRunnerX=runner.transform.position.x;
+            bool wasCaught=caught;caught=false;age=gait=lag=0;cueClock=9;opening=false;chaseStarted=false;previousRunnerX=runner.transform.position.x;
             if(actors[0].CarryNet!=null)actors[0].CarryNet.gameObject.SetActive(true);
             if(actors[1].Tool!=null)actors[1].Tool.localRotation=Quaternion.identity;
             if(stage==null)return;effects.Stop();voices.Stop();pausedSounds=false;net.gameObject.SetActive(false);dart.gameObject.SetActive(false);captive.gameObject.SetActive(false);
@@ -231,7 +232,9 @@ namespace RollingPanda
         }
         void LateUpdate()
         {
-            if(runner==null || opening)return;
+            if(runner==null)return;
+            effects.volume=.16f*GameAudioSettings.Effects;voices.volume=.12f*GameAudioSettings.Effects;
+            if(opening)return;
             if(RunEntryTransition.Active && !RunEntryTransition.Revealing){stage.gameObject.SetActive(false);return;}
             stage.gameObject.SetActive(true);stage.localPosition=new Vector3(0,-runner.transform.position.y,0);
             if(runner.Paused && !pausedSounds){effects.Pause();voices.Pause();pausedSounds=true;}
@@ -242,12 +245,16 @@ namespace RollingPanda
                 CapturePose();return;
             }
             if(runner.Paused)return;
-            gait=Mathf.Repeat(gait+Time.deltaTime*Mathf.Lerp(10,16,Mathf.InverseLerp(17.5f,40,runner.CurrentSpeed)),Mathf.PI*2);lag=Mathf.MoveTowards(lag,runner.InChute ? 6 : 0,Time.deltaTime*3);
+            if(!chaseStarted)lag=PoacherRules.Gap(runner.DistanceTravelled,runner.InChute);
+            gait=Mathf.Repeat(gait+Time.deltaTime*Mathf.Lerp(10,16,Mathf.InverseLerp(17.5f,40,runner.CurrentSpeed)),Mathf.PI*2);lag=Mathf.MoveTowards(lag,PoacherRules.Gap(runner.DistanceTravelled,runner.InChute),Time.deltaTime*2.5f);
+            cueClock-=Time.deltaTime;
+            if(cueClock<=0 && lag<5 && !runner.InChute){voices.PlayOneShot(sounds[1],.42f);cueClock=12;}
+
             float dx=runner.transform.position.x-previousRunnerX;previousRunnerX=runner.transform.position.x;
             float follow=PoacherRules.Follow(6,Time.deltaTime),spacing=view!=null && view.aspect<1 ? .95f : 1.65f;
             for(int i=0;i<2;i++)
             {
-                Vector3 target=new Vector3(i==0 ? -spacing : spacing,0,-2.7f-i*.65f-lag);
+                Vector3 target=new Vector3(i==0 ? -spacing : spacing,0,-lag-i*.65f);
                 Vector3 prior=actors[i].Root.localPosition;prior.x-=dx;
                 actors[i].Root.localPosition=chaseStarted ? Vector3.Lerp(prior,target,follow) : target;
                 float lean=Mathf.Clamp(dx/Mathf.Max(.001f,Time.deltaTime),-12,12);
@@ -287,8 +294,9 @@ namespace RollingPanda
             if(!runner.Paused && age>=.65f && !netPlayed)
             {effects.PlayOneShot(sounds[2]);netPlayed=true;netRelease=stage.InverseTransformPoint(actors[0].CarryNet.position);netRotation=Quaternion.Inverse(stage.rotation)*actors[0].CarryNet.rotation;actors[0].CarryNet.gameObject.SetActive(false);}
             net.gameObject.SetActive(age>=.65f);
-            net.localPosition=Vector3.Lerp(netRelease,new Vector3(0,.92f,0),throwNet)+Vector3.up*Mathf.Sin(throwNet*Mathf.PI)*.45f;
-            net.localScale=Vector3.Lerp(new Vector3(.35f,.35f,.05f),new Vector3(.72f,.96f,.65f),throwNet);net.localRotation=Quaternion.Slerp(netRotation,Quaternion.identity,throwNet);
+            net.localPosition=Vector3.Lerp(netRelease,new Vector3(0,1.08f,0),throwNet)+Vector3.up*Mathf.Sin(throwNet*Mathf.PI)*.45f;
+            float netSettle=PoacherRules.Progress(age,1.4f,2.2f);
+            net.localScale=Vector3.Lerp(new Vector3(.35f,.35f,.05f),new Vector3(.86f,1.13f-netSettle*.07f,.78f),throwNet);net.localRotation=Quaternion.Slerp(netRotation,Quaternion.identity,throwNet);
             if(!runner.Paused && age>=1.85f && !dartPlayed)
             {effects.PlayOneShot(sounds[3]);dartPlayed=true;dartRelease=stage.InverseTransformPoint(actors[1].Tool.TransformPoint(new Vector3(0,0,.57f)));}
             dart.gameObject.SetActive(age>=1.85f);
@@ -297,10 +305,26 @@ namespace RollingPanda
             SetEyes(sleep>.3f);
             if(view!=null)
             {
-                Vector3 target=stage.position+new Vector3(0,1,0),desired=stage.position+new Vector3(3.8f,view.aspect<1 ? 3.2f : 2.65f,view.aspect<1 ? -8.5f : -5.2f);
+                Vector3 target=stage.position+new Vector3(0,1,0),desired=stage.position+captureCameraOffset;
                 float cameraBlend=PoacherRules.Progress(age,0,.85f);view.transform.position=Vector3.Lerp(cameraStart,desired,cameraBlend);
                 view.transform.rotation=Quaternion.Slerp(cameraRotation,Quaternion.LookRotation(target-view.transform.position),cameraBlend);
             }
+        }
+        Vector3 CaptureView()
+        {
+            // Prefer the face; try wider front angles if the fatal obstacle blocks the shot.
+            Vector3 target=stage.position+Vector3.up;
+            for(int candidate=0;candidate<6;candidate++)
+            {
+                float side=candidate%2==0 ? 1 : -1;
+                Vector3 offset=new Vector3(side*(candidate<2 ? 3.8f : candidate<4 ? 5.8f : 6.5f),view.aspect<1 ? 3.2f : 2.65f,candidate<2 ? 5.2f : candidate<4 ? 2.5f : .8f);
+                if(view.aspect<1)offset*=1.25f;
+                Vector3 direction=stage.position+offset-target;bool blocked=false;
+                int count=Physics.SphereCastNonAlloc(target,.18f,direction.normalized,cameraHits,direction.magnitude,~0,QueryTriggerInteraction.Ignore);
+                for(int i=0;i<count;i++)if(!cameraHits[i].transform.IsChildOf(runner.transform)){blocked=true;break;}
+                if(!blocked)return offset;
+            }
+            return new Vector3(6.5f,3.2f,.8f);
         }
         static void Walk(Actor actor,float phase,float strength)
         {
@@ -323,14 +347,20 @@ namespace RollingPanda
             hip.rotation=Quaternion.FromToRotation(Vector3.down,joint-hip.position);knee.rotation=Quaternion.FromToRotation(Vector3.down,target-joint);
             foot.rotation=actor.Root.rotation*Quaternion.Euler(pitch,0,0);
         }
-        Mesh BuildNet()
+        Mesh BuildNet(bool draped=false)
         {
             var vertices=new List<Vector3>();var triangles=new List<int>();
             for(int ring=1;ring<10;ring++)for(int i=0;i<20;i++)
             {float y=ring*Mathf.PI/10,a=i*Mathf.PI*2/20,b=(i+1)*Mathf.PI*2/20;Rope(vertices,triangles,new Vector3(Mathf.Sin(y)*Mathf.Cos(a),Mathf.Cos(y),Mathf.Sin(y)*Mathf.Sin(a)),new Vector3(Mathf.Sin(y)*Mathf.Cos(b),Mathf.Cos(y),Mathf.Sin(y)*Mathf.Sin(b)));}
             for(int line=0;line<12;line++)for(int i=0;i<12;i++)
             {float a=line*Mathf.PI*2/12,y=i*Mathf.PI/12,z=(i+1)*Mathf.PI/12;Rope(vertices,triangles,new Vector3(Mathf.Sin(y)*Mathf.Cos(a),Mathf.Cos(y),Mathf.Sin(y)*Mathf.Sin(a)),new Vector3(Mathf.Sin(z)*Mathf.Cos(a),Mathf.Cos(z),Mathf.Sin(z)*Mathf.Sin(a)));}
-            var mesh=new Mesh{name="Pooled capture rope net"};mesh.SetVertices(vertices);mesh.SetTriangles(triangles,0);mesh.RecalculateNormals();mesh.RecalculateBounds();mesh.UploadMeshData(true);return mesh;
+            if(draped)for(int i=0;i<vertices.Count;i++)
+            {
+                Vector3 v=vertices[i];float angle=Mathf.Atan2(v.z,v.x);
+                float fold=1+.1f*Mathf.Sin(angle*5+v.y*2);
+                v.x*=fold;v.z*=fold;v.y-=.14f*(1-v.y*v.y)*(1+.5f*Mathf.Sin(angle*3));vertices[i]=v;
+            }
+            var mesh=new Mesh{name=draped ? "Loose folded capture net" : "Pooled capture rope net"};if(draped)detailMeshes.Add(mesh);mesh.SetVertices(vertices);mesh.SetTriangles(triangles,0);mesh.RecalculateNormals();mesh.RecalculateBounds();mesh.UploadMeshData(true);return mesh;
         }
         static void Rope(List<Vector3> vertices,List<int> indices,Vector3 a,Vector3 b)
         {
